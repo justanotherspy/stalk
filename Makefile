@@ -1,5 +1,5 @@
 # ==============================================================================
-# go-template — developer Makefile
+# stalk — developer Makefile
 #
 # Run `make help` to see all targets.
 # Tool versions are pinned below and mirrored in the GitHub Actions workflows
@@ -10,7 +10,7 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 # ---- Project ----------------------------------------------------------------
-BINARY   := go-template
+BINARY   := stalk
 MAIN_PKG := ./cmd/$(BINARY)
 BIN_DIR  := bin
 DIST_DIR := dist
@@ -280,11 +280,11 @@ dist-extras: ## Generate completions + man pages
 	$(GO) run ./cmd/gen-docs
 
 # ---- Container --------------------------------------------------------------
-IMAGE     ?= go-template
+IMAGE     ?= stalk
 IMAGE_TAG ?= dev
 
 .PHONY: docker-build
-docker-build: ## Build a local container image (IMAGE=go-template IMAGE_TAG=dev)
+docker-build: ## Build a local container image (IMAGE=stalk IMAGE_TAG=dev)
 	docker build \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \

@@ -1,14 +1,14 @@
 # --verbose turns on debug logging, which goes to stderr (stdout stays clean).
-exec go-template --verbose version
-stdout 'go-template e2e'
+exec stalk --verbose version
+stdout 'stalk e2e'
 stderr 'level=DEBUG'
 stderr 'configuration loaded'
 
-# The same is configurable via the GO_TEMPLATE_ env prefix.
-env GO_TEMPLATE_LOG_FORMAT=json
-exec go-template --verbose version
+# The same is configurable via the STALK_ env prefix.
+env STALK_LOG_FORMAT=json
+exec stalk --verbose version
 stderr '"level":"DEBUG"'
 
 # An unknown command fails with a non-zero exit and a helpful message.
-! exec go-template definitely-not-a-command
+! exec stalk definitely-not-a-command
 stderr 'unknown command'

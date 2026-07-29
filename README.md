@@ -1,28 +1,12 @@
-# go-template
+# stalk
 
-[![CI](https://github.com/justanotherspy/go-template/actions/workflows/ci.yml/badge.svg)](https://github.com/justanotherspy/go-template/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/justanotherspy/go-template/actions/workflows/codeql.yml/badge.svg)](https://github.com/justanotherspy/go-template/actions/workflows/codeql.yml)
-[![Release](https://img.shields.io/github/v/release/justanotherspy/go-template?sort=semver)](https://github.com/justanotherspy/go-template/releases)
-[![Go Reference](https://pkg.go.dev/badge/github.com/justanotherspy/go-template.svg)](https://pkg.go.dev/github.com/justanotherspy/go-template)
+[![CI](https://github.com/justanotherspy/stalk/actions/workflows/ci.yml/badge.svg)](https://github.com/justanotherspy/stalk/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/justanotherspy/stalk/actions/workflows/codeql.yml/badge.svg)](https://github.com/justanotherspy/stalk/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/justanotherspy/stalk?sort=semver)](https://github.com/justanotherspy/stalk/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/justanotherspy/stalk.svg)](https://pkg.go.dev/github.com/justanotherspy/stalk)
 
 A batteries-included template for building Go command-line tools, with CI,
 linting, security scanning, and automated releases wired up from day one.
-
-<!-- TEMPLATE:START -->
-## Using this template
-
-1. Click **Use this template** → **Create a new repository**.
-2. A one-shot GitHub Action (`template-cleanup.yml`) automatically rewrites the
-   module path, command directory, binary name, and `CODEOWNERS` to match your
-   new repository, then deletes itself.
-3. Wait for the `Initialize from template` action to finish and pull the
-   resulting commit.
-4. Start building in `internal/cli/`.
-
-> If you cloned this repo manually instead of using the template button, you can
-> run the same substitutions yourself by replacing `justanotherspy/go-template`
-> (module path) and `go-template` (binary / command directory) throughout.
-<!-- TEMPLATE:END -->
 
 ## Features
 
@@ -71,14 +55,14 @@ make run ARGS="version"
 ## Usage
 
 ```sh
-go-template            # prints help
-go-template version    # prints version / build info
-go-template --help
+stalk            # prints help
+stalk version    # prints version / build info
+stalk --help
 ```
 
 Configuration is read (in order of precedence) from flags, environment
-variables prefixed with `GO_TEMPLATE_`, and an optional config file
-(`--config`, default `$HOME/.go-template.yaml`).
+variables prefixed with `STALK_`, and an optional config file
+(`--config`, default `$HOME/.stalk.yaml`).
 
 ## Install
 
@@ -89,14 +73,14 @@ and tap references are rewritten to match the new repo.)
 ### Homebrew (macOS and Linux)
 
 ```sh
-brew install --cask justanotherspy/tap/go-template
+brew install --cask justanotherspy/tap/stalk
 ```
 
 Or tap once, then install by short name:
 
 ```sh
 brew tap justanotherspy/tap
-brew install --cask go-template
+brew install --cask stalk
 ```
 
 The cask is regenerated and pushed to
@@ -110,30 +94,30 @@ the rest of the release still succeeds.
 Download a checksum-verified prebuilt binary (no Go toolchain needed):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/justanotherspy/go-template/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/justanotherspy/stalk/main/install.sh | bash
 ```
 
 Pin a version or target directory with environment variables (the prefix is the
 binary name upper-cased):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/justanotherspy/go-template/main/install.sh \
-  | GO_TEMPLATE_VERSION=v0.1.0 GO_TEMPLATE_INSTALL_DIR=/usr/local/bin bash
+curl -fsSL https://raw.githubusercontent.com/justanotherspy/stalk/main/install.sh \
+  | STALK_VERSION=v0.1.0 STALK_INSTALL_DIR=/usr/local/bin bash
 ```
 
 ### From source
 
 ```sh
-go install github.com/justanotherspy/go-template/cmd/go-template@latest
+go install github.com/justanotherspy/stalk/cmd/stalk@latest
 ```
 
 Prebuilt binaries are also on the
-[releases](https://github.com/justanotherspy/go-template/releases) page. Verify
+[releases](https://github.com/justanotherspy/stalk/releases) page. Verify
 `checksums.txt` against its cosign bundle before trusting a download:
 
 ```sh
 cosign verify-blob --bundle checksums.txt.sigstore.json \
-  --certificate-identity-regexp '^https://github.com/justanotherspy/go-template' \
+  --certificate-identity-regexp '^https://github.com/justanotherspy/stalk' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
   checksums.txt
 ```

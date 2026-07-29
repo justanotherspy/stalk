@@ -8,7 +8,7 @@ package cli_test
 // rogpeppe/go-internal/testscript, the same harness the Go toolchain uses for
 // its own CLI tests. Each case is a `.txtar` script under testdata/script/.
 //
-// testscript.RunMain re-execs THIS test binary for every `go-template` command
+// testscript.RunMain re-execs THIS test binary for every `stalk` command
 // in a script, dispatching to the function registered below — so there is no
 // separate build step and coverage still attributes to the cli package.
 
@@ -18,14 +18,14 @@ import (
 
 	"github.com/rogpeppe/go-internal/testscript"
 
-	"github.com/justanotherspy/go-template/internal/cli"
+	"github.com/justanotherspy/stalk/internal/cli"
 )
 
-// TestMain lets the test binary masquerade as the `go-template` command when
+// TestMain lets the test binary masquerade as the `stalk` command when
 // invoked by testscript, and otherwise runs the normal test suite.
 func TestMain(m *testing.M) {
 	testscript.Main(m, map[string]func(){
-		"go-template": func() {
+		"stalk": func() {
 			// cli.Execute calls os.Exit itself (non-zero on error); on success
 			// it returns and testscript records a clean exit.
 			cli.Execute(context.Background(), cli.BuildInfo{

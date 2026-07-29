@@ -64,7 +64,7 @@ jobs:
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
       # Generate SLSA build provenance covering every released artifact (one
       # attestation keyed off checksums.txt). Verify with:
-      #   gh attestation verify <archive> --repo justanotherspy/go-template
+      #   gh attestation verify <archive> --repo justanotherspy/stalk
       - name: Attest build provenance
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:

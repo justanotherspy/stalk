@@ -1,4 +1,4 @@
-// Command go-template is the entrypoint for the CLI.
+// Command stalk is the entrypoint for the CLI.
 package main
 
 import (
@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/justanotherspy/go-template/internal/cli"
+	"github.com/justanotherspy/stalk/internal/cli"
 )
 
 // Build information. Populated at release time via -ldflags by GoReleaser

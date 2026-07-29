@@ -22,7 +22,7 @@ import (
 // are trimmed. The result therefore matches ^([A-Z0-9]+(_[A-Z0-9]+)*)?$ and is
 // idempotent — properties the fuzz test asserts.
 //
-// It pairs naturally with Viper's GO_TEMPLATE_ env-var prefix: NormalizeKey
+// It pairs naturally with Viper's STALK_ env-var prefix: NormalizeKey
 // turns a human label like "Max Retry Count" into "MAX_RETRY_COUNT".
 func NormalizeKey(s string) string {
 	var b strings.Builder

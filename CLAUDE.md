@@ -15,7 +15,7 @@ repo.
 ## Layout
 
 ```
-cmd/go-template/      main package; injects build info and calls internal/cli
+cmd/stalk/      main package; injects build info and calls internal/cli
 internal/cli/         command tree (root + subcommands), config loading
 internal/examples/    reference tests: fuzzing, benchmarks, testing/synctest
 .github/workflows/    CI, fuzz (nightly), CodeQL, Semgrep, secret-scan, zizmor,

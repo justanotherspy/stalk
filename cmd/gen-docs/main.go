@@ -1,7 +1,7 @@
 // Command gen-docs renders shell completions and man pages for the CLI.
 //
 // It is a development-only helper and is deliberately NOT shipped in releases
-// (GoReleaser builds only ./cmd/go-template). The release pipeline and the
+// (GoReleaser builds only ./cmd/stalk). The release pipeline and the
 // `make completions` / `make man` targets run it to populate the ./completions
 // and ./man directories, which are then bundled into the release archives.
 //
@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 
-	"github.com/justanotherspy/go-template/internal/cli"
+	"github.com/justanotherspy/stalk/internal/cli"
 )
 
 func main() {

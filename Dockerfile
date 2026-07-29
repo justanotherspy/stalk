@@ -43,19 +43,19 @@ ENV CGO_ENABLED=0
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath \
       -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
-      -o /go-template ./cmd/go-template
+      -o /stalk ./cmd/stalk
 
 # ---- runtime stage ----------------------------------------------------------
 FROM cgr.dev/chainguard/static:latest@sha256:399c8cb4858f05aaa33f43f02a2e75f28d40f016c0f86e5ba6075769e3303791
 
 # OCI metadata: lets GHCR, `docker scout`, etc. link the image to its source.
-LABEL org.opencontainers.image.source="https://github.com/justanotherspy/go-template" \
+LABEL org.opencontainers.image.source="https://github.com/justanotherspy/stalk" \
       org.opencontainers.image.description="A batteries-included template for building Go command-line tools" \
       org.opencontainers.image.licenses="MIT"
 
-COPY --from=build /go-template /usr/bin/go-template
+COPY --from=build /stalk /usr/bin/stalk
 
 # Run as the non-root user (65532) that chainguard/static ships with. Set it
 # explicitly so the final image's effective USER is not root.
 USER nonroot
-ENTRYPOINT ["/usr/bin/go-template"]
+ENTRYPOINT ["/usr/bin/stalk"]

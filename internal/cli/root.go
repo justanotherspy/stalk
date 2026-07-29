@@ -30,9 +30,9 @@ var (
 
 func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "go-template",
+		Use:           "stalk",
 		Short:         "A starter Go CLI",
-		Long:          "go-template is a starter template for building Go command-line applications.",
+		Long:          "stalk is a starter template for building Go command-line applications.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -59,7 +59,7 @@ func newRootCmd() *cobra.Command {
 	}
 
 	pf := cmd.PersistentFlags()
-	pf.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.go-template.yaml)")
+	pf.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.stalk.yaml)")
 	pf.BoolVarP(&verbose, "verbose", "v", false, "enable verbose (debug) logging")
 	pf.StringVar(&logLevel, "log-level", "info", "log level: debug, info, warn, error")
 	pf.StringVar(&logFormat, "log-format", "text", "log format: text or json")
@@ -77,11 +77,11 @@ func NewRootCmd() *cobra.Command {
 }
 
 // initConfig loads configuration from a file (if present) and the environment,
-// then binds the persistent flags so that flags, GO_TEMPLATE_ environment
+// then binds the persistent flags so that flags, STALK_ environment
 // variables, and the config file all feed the same viper keys (in that order of
-// precedence). Environment variables are read with the GO_TEMPLATE_ prefix;
+// precedence). Environment variables are read with the STALK_ prefix;
 // nested keys map with "." and "-" replaced by "_" (e.g. log.level ->
-// GO_TEMPLATE_LOG_LEVEL).
+// STALK_LOG_LEVEL).
 func initConfig(cmd *cobra.Command) error {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
@@ -92,10 +92,10 @@ func initConfig(cmd *cobra.Command) error {
 		}
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".go-template")
+		viper.SetConfigName(".stalk")
 	}
 
-	viper.SetEnvPrefix("GO_TEMPLATE")
+	viper.SetEnvPrefix("STALK")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 
