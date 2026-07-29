@@ -1,0 +1,49 @@
+# Canonical repository labels, synced by .github/workflows/labeler.yml.
+# These are referenced by .github/dependabot.yml and .github/release-drafter.yml;
+# keep this file in sync when you add a new label reference there.
+
+# --- Dependabot ---
+- name: dependencies
+  color: 0366d6
+  description: Dependency updates
+- name: go
+  color: 00add8
+  description: Go modules / language
+- name: github-actions
+  color: 2088ff
+  description: GitHub Actions / CI workflows
+- name: docker
+  color: 1d63ed
+  description: Docker images or the Dockerfile
+- name: python
+  color: 3572a5
+  description: Hash-pinned Python CI tools (.github/requirements)
+
+# --- release-drafter categories & autolabeler ---
+- name: feature
+  color: 0e8a16
+  description: New feature
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+- name: fix
+  color: d93f0b
+  description: Bug fix
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+- name: security
+  color: b60205
+  description: Security-related change
+- name: chore
+  color: fef2c0
+  description: Routine task or chore
+- name: maintenance
+  color: fbca04
+  description: Maintenance work
+- name: docs
+  color: 0075ca
+  description: Documentation
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation

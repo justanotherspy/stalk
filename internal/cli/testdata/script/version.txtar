@@ -1,0 +1,6 @@
+# `version` prints the injected build metadata to stdout.
+exec go-template version
+stdout 'go-template e2e'
+stdout 'commit:\s+testcommit'
+stdout 'os/arch:'
+! stderr .

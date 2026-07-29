@@ -1,0 +1,38 @@
+name: Vuln scan
+
+# govulncheck already runs on every PR/push via ci.yml. This workflow runs it
+# on a schedule too, so a CVE newly disclosed against a dependency you already
+# have (or against the stdlib your pinned toolchain builds with) is caught
+# without waiting for the next commit. A failure here means a known
+# vulnerability is reachable from this code — bump the dependency or the
+# `toolchain` directive in go.mod and re-run `make vuln`.
+
+on:
+  schedule:
+    # Weekly, Monday 06:00 UTC (before the workday, after Dependabot's run).
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vuln-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vuln:
+    name: Govulncheck
+    runs-on: ubuntu-latest
+    env:
+      # Let go.mod's `toolchain` directive pull the patched Go for the scan,
+      # so CI matches `make vuln` locally instead of a runner's base toolchain.
+      GOTOOLCHAIN: auto
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: make vuln

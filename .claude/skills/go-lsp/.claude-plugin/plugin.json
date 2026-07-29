@@ -1,0 +1,8 @@
+{
+  "name": "go-lsp",
+  "description": "Go code intelligence for Claude Code via gopls: live diagnostics after edits, go-to-definition, find-references, hover, and type info.",
+  "version": "0.1.0",
+  "author": {
+    "name": "justanotherspy"
+  }
+}

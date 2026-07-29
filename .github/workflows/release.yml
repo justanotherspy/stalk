@@ -1,0 +1,93 @@
+name: Release
+
+# Triggered when a drafted release is published as a pre-release. The pipeline
+# validates, builds binaries with GoReleaser, then promotes the release to
+# "latest" (clearing the pre-release flag) once everything succeeds.
+on:
+  release:
+    types: [prereleased]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.12.2
+      - run: make test
+
+  goreleaser:
+    name: GoReleaser
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # Keyless cosign signing of checksums.txt uses the workflow OIDC token.
+      id-token: write
+      # SLSA build-provenance attestation for the released artifacts.
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      # cosign signs checksums.txt; syft generates the per-archive SBOMs.
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: "v2.16.0"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with contents:write on justanotherspy/homebrew-tap so goreleaser
+          # can push the generated cask there. The default GITHUB_TOKEN only
+          # reaches this repo; when this secret is unset the cask push is skipped.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      # Generate SLSA build provenance covering every released artifact (one
+      # attestation keyed off checksums.txt). Verify with:
+      #   gh attestation verify <archive> --repo justanotherspy/go-template
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-checksums: dist/checksums.txt
+
+  promote:
+    name: Promote to latest
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Clear pre-release flag and mark latest
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const release = context.payload.release;
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              draft: false,
+              prerelease: false,
+              make_latest: 'true',
+            });
+            core.info(`Promoted ${release.tag_name} to latest`);

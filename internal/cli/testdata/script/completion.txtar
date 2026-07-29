@@ -1,0 +1,4 @@
+# Cobra ships a `completion` command; make sure it emits a bash script.
+exec go-template completion bash
+stdout 'bash completion'
+stdout 'go-template'

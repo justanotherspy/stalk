@@ -1,0 +1,5 @@
+# Input for the hash-pinned zizmor.txt used by .github/workflows/zizmor.yml.
+# Regenerate with:
+#   uv pip compile --python-version 3.13 --python-platform linux \
+#     --generate-hashes -o .github/requirements/zizmor.txt .github/requirements/zizmor.in
+zizmor

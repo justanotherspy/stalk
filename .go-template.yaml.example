@@ -1,0 +1,28 @@
+# Example configuration for go-template.
+#
+# Copy this to ~/.go-template.yaml (the default location) or point at it with
+# --config /path/to/file.yaml.
+#
+# Configuration precedence (highest wins):
+#   1. command-line flags        (e.g. --log-level debug)
+#   2. environment variables     (GO_TEMPLATE_ prefix; nested keys use "_",
+#                                 e.g. log.level -> GO_TEMPLATE_LOG_LEVEL)
+#   3. this config file
+#   4. built-in defaults
+
+# Enable verbose (debug) logging. Equivalent to --verbose / -v.
+# Overrides log.level when true.
+verbose: false
+
+log:
+  # Minimum level to emit: debug, info, warn, error.
+  level: info
+  # Output format: text (human-readable) or json (structured).
+  format: text
+
+# ---------------------------------------------------------------------------
+# Add your application's own settings below. Anything here is readable via
+# viper (e.g. viper.GetString("greeting")) and overridable with
+# GO_TEMPLATE_GREETING or --flags you bind in internal/cli.
+#
+# greeting: hello

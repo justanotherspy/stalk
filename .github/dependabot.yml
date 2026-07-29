@@ -1,0 +1,90 @@
+version: 2
+updates:
+  # Go modules
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    # Wait 7 days after a release before opening an update, so freshly
+    # published (and potentially compromised or buggy) versions can settle.
+    cooldown:
+      default-days: 7
+    assignees:
+      - justanotherspy
+    labels:
+      - dependencies
+      - go
+    groups:
+      # Group all non-major Go dependency bumps into a single PR.
+      go-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      # Group all major Go dependency bumps separately so they get attention.
+      go-major:
+        patterns:
+          - "*"
+        update-types:
+          - major
+
+  # GitHub Actions (keeps the pinned SHAs up to date)
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    assignees:
+      - justanotherspy
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Python tools installed in CI (keeps the hash-pinned requirements files for
+  # semgrep and zizmor in .github/requirements/ current)
+  - package-ecosystem: pip
+    directory: "/.github/requirements"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    assignees:
+      - justanotherspy
+    labels:
+      - dependencies
+      - python
+    groups:
+      pip:
+        patterns:
+          - "*"
+
+  # Docker base images (keeps the Dockerfile's Chainguard tags/digests current)
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    assignees:
+      - justanotherspy
+    labels:
+      - dependencies
+      - docker
+    groups:
+      docker:
+        patterns:
+          - "*"

@@ -1,0 +1,9 @@
+# With no args the root command prints help; --help does too and exits 0.
+exec go-template --help
+stdout 'starter template for building Go command-line applications'
+stdout 'version'
+stdout 'completion'
+
+# Bare invocation also shows help (RunE -> cmd.Help()).
+exec go-template
+stdout 'Usage:'

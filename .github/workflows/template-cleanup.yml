@@ -1,0 +1,95 @@
+name: Template Cleanup
+
+# One-shot workflow that rewrites template placeholders when a new repository
+# is generated from this template. It renames the module path, command
+# directory, and binary to match the new repo, updates CODEOWNERS, strips the
+# template-only README block, then deletes itself. It never runs on the
+# template repository itself (guarded by the `if` below).
+
+on:
+  push:
+    branches: [main]
+
+# Default to read-only; the cleanup job below escalates to contents: write
+# (it must push the rewritten template back to the new repository).
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    if: github.repository != 'justanotherspy/go-template'
+    name: Initialize from template
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # This one-shot job commits and pushes the rewritten template back to the
+      # new repo (see "Commit changes"), so the checkout must keep its
+      # credentials; persist-credentials: false would break the push.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
+        with:
+          fetch-depth: 0
+
+      - name: Rewrite template placeholders
+        env:
+          REPO_FULL: ${{ github.repository }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          REPO_NAME="${REPO_FULL#*/}"
+          TEMPLATE_FULL="justanotherspy/go-template"
+          TEMPLATE_NAME="go-template"
+
+          # 1. Replace the full module path (owner/repo) everywhere.
+          grep -rlI --exclude-dir=.git "$TEMPLATE_FULL" . \
+            | xargs -r sed -i "s#${TEMPLATE_FULL}#${REPO_FULL}#g"
+
+          # 2. Rename the command directory to match the new repo name.
+          if [ "$REPO_NAME" != "$TEMPLATE_NAME" ] && [ -d "cmd/${TEMPLATE_NAME}" ]; then
+            git mv "cmd/${TEMPLATE_NAME}" "cmd/${REPO_NAME}"
+          fi
+
+          # 3. Replace remaining bare references to the template name.
+          if [ "$REPO_NAME" != "$TEMPLATE_NAME" ]; then
+            grep -rlI --exclude-dir=.git "$TEMPLATE_NAME" . \
+              | xargs -r sed -i "s#${TEMPLATE_NAME}#${REPO_NAME}#g"
+          fi
+
+          # 3b. Replace the upper-case env-var prefix (viper SetEnvPrefix in
+          #     internal/cli, the install.sh override prefix, and docs). Derived
+          #     from the repo name: upper-cased, non-alphanumerics -> '_'.
+          TEMPLATE_ENV="$(printf '%s' "$TEMPLATE_NAME" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
+          TEMPLATE_ENV="${TEMPLATE_ENV%_}"
+          REPO_ENV="$(printf '%s' "$REPO_NAME" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
+          REPO_ENV="${REPO_ENV%_}"
+          if [ "$REPO_ENV" != "$TEMPLATE_ENV" ]; then
+            grep -rlI --exclude-dir=.git "$TEMPLATE_ENV" . \
+              | xargs -r sed -i "s#${TEMPLATE_ENV}#${REPO_ENV}#g"
+          fi
+
+          # 4. Point CODEOWNERS and Dependabot assignees at the new repository owner.
+          if [ -f .github/CODEOWNERS ]; then
+            sed -i "s#@justanotherspy#@${REPO_OWNER}#g" .github/CODEOWNERS
+          fi
+          if [ -f .github/dependabot.yml ]; then
+            sed -i "s#- justanotherspy#- ${REPO_OWNER}#g" .github/dependabot.yml
+          fi
+
+          # 5. Strip the template-only README block.
+          if [ -f README.md ]; then
+            sed -i '/<!-- TEMPLATE:START -->/,/<!-- TEMPLATE:END -->/d' README.md
+          fi
+
+          # 6. Remove this one-shot workflow.
+          git rm -f .github/workflows/template-cleanup.yml
+
+      - name: Commit changes
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "chore: initialize project from go-template"
+            git push
+          fi

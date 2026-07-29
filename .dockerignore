@@ -1,0 +1,35 @@
+# Keep the build context small and reproducible: send only what the build needs.
+.git
+.github
+.claude
+
+# Build / test artifacts
+bin/
+dist/
+profiles/
+completions/
+man/
+*.out
+coverage.*
+*.coverprofile
+*.prof
+*.test
+bench-*.txt
+
+# Docs & meta (not needed to compile the binary)
+*.md
+LICENSE
+SECURITY.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SUPPORT.md
+install.sh
+.goreleaser.yaml
+.golangci.yml
+.editorconfig
+.gitattributes
+.gitignore
+.pre-commit-config.yaml
+.go-template.yaml.example
+Dockerfile
+.dockerignore

@@ -1,0 +1,60 @@
+# release-drafter configuration.
+# Docs: https://github.com/release-drafter/release-drafter
+#
+# The resolved version is overridden by the release-drafter workflow, which
+# reads it from the top-level VERSION file. Categories are driven by PR labels.
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+version-template: "$MAJOR.$MINOR.$PATCH"
+
+categories:
+  - title: "Features"
+    when:
+      labels:
+        - feature
+        - enhancement
+  - title: "Bug Fixes"
+    when:
+      labels:
+        - fix
+        - bug
+  - title: "Security"
+    when:
+      labels:
+        - security
+  - title: "Maintenance"
+    when:
+      labels:
+        - chore
+        - maintenance
+        - dependencies
+  - title: "Documentation"
+    when:
+      labels:
+        - docs
+        - documentation
+
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+change-title-escapes: '\<*_&'
+
+autolabeler:
+  - label: documentation
+    files:
+      - "**/*.md"
+  - label: dependencies
+    files:
+      - go.mod
+      - go.sum
+  - label: bug
+    title:
+      - "/^fix/i"
+  - label: feature
+    title:
+      - "/^feat/i"
+
+template: |
+  ## Changes
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPO/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

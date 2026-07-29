@@ -1,0 +1,53 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "linear": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "headers": {
+        "Authorization": "Bearer ${LINEAR_API_KEY}"
+      }
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "sprite": {
+      "type": "http",
+      "url": "https://sprites.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer ${SPRITES_TOKEN}"
+      }
+    },
+    "semgrep": {
+      "command": "uvx",
+      "args": ["semgrep-mcp"],
+      "env": {
+        "SEMGREP_APP_TOKEN": "${SEMGREP_APP_TOKEN:-}"
+      }
+    },
+    "fly": {
+      "command": "fly",
+      "args": ["mcp", "server"],
+      "env": {
+        "FLY_API_TOKEN": "${FLY_API_TOKEN:-}"
+      }
+    },
+    "shuck": {
+      "command": "shuck",
+      "args": ["mcp"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  }
+}

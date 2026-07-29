@@ -1,0 +1,5 @@
+# Input for the hash-pinned semgrep.txt used by .github/workflows/semgrep.yml.
+# Regenerate with:
+#   uv pip compile --python-version 3.13 --python-platform linux \
+#     --generate-hashes -o .github/requirements/semgrep.txt .github/requirements/semgrep.in
+semgrep
