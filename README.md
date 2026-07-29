@@ -5,8 +5,8 @@
 [![Release](https://img.shields.io/github/v/release/justanotherspy/stalk?sort=semver)](https://github.com/justanotherspy/stalk/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/justanotherspy/stalk.svg)](https://pkg.go.dev/github.com/justanotherspy/stalk)
 
-A batteries-included template for building Go command-line tools, with CI,
-linting, security scanning, and automated releases wired up from day one.
+A Go command-line tool, with CI, linting, security scanning, and automated
+releases wired up from day one.
 
 ## Features
 
