@@ -4,22 +4,19 @@ Guidance for Claude Code (and humans) working in this repository.
 
 ## What this is
 
-A template for a Go command-line application built with
+A Go command-line application built with
 [Cobra](https://github.com/spf13/cobra) and
 [Viper](https://github.com/spf13/viper). It ships with CI, linting, security
-scanning, and an automated release pipeline. New repositories created from the
-template are auto-initialized by `.github/workflows/template-cleanup.yml`, which
-rewrites the module path, command directory, and binary name to match the new
-repo.
+scanning, and an automated release pipeline.
 
 ## Layout
 
 ```
-cmd/go-template/      main package; injects build info and calls internal/cli
+cmd/stalk/            main package; injects build info and calls internal/cli
 internal/cli/         command tree (root + subcommands), config loading
 internal/examples/    reference tests: fuzzing, benchmarks, testing/synctest
 .github/workflows/    CI, fuzz (nightly), CodeQL, Semgrep, secret-scan, zizmor,
-                      labeler, release-drafter, release, cleanup
+                      labeler, release-drafter, release
 .github/ISSUE_TEMPLATE/  bug-report + feature-request issue forms
 .github/labels.yml    canonical repo labels (synced by the labeler workflow)
 .golangci.yml         golangci-lint v2 config (linters + formatters)

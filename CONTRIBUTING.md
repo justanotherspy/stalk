@@ -45,4 +45,4 @@ Open an issue using one of the [issue templates][issues]. For security
 vulnerabilities, follow the [security policy](SECURITY.md) instead of opening a
 public issue.
 
-[issues]: https://github.com/justanotherspy/go-template/issues/new/choose
+[issues]: https://github.com/justanotherspy/stalk/issues/new/choose

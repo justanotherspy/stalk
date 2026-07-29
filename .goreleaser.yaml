@@ -8,7 +8,7 @@
 # release to "latest".
 version: 2
 
-project_name: go-template
+project_name: stalk
 
 before:
   hooks:
@@ -20,9 +20,9 @@ before:
     - go run ./cmd/gen-docs
 
 builds:
-  - id: go-template
-    main: ./cmd/go-template
-    binary: go-template
+  - id: stalk
+    main: ./cmd/stalk
+    binary: stalk
     env:
       - CGO_ENABLED=0
     flags:
@@ -91,31 +91,31 @@ changelog:
   disable: true
 
 # Generate a Homebrew cask and push it to the shared tap at
-# justanotherspy/homebrew-tap, so `brew install --cask justanotherspy/tap/go-template`
+# justanotherspy/homebrew-tap, so `brew install --cask justanotherspy/tap/stalk`
 # tracks the latest release. Pushing to the tap needs a PAT
 # (HOMEBREW_TAP_GITHUB_TOKEN) since the default GITHUB_TOKEN only reaches this
 # repo. Repos generated from this template inherit the config: the cask name,
 # binary, homepage, and url are rewritten to the new repo by template-cleanup;
 # the tap owner stays justanotherspy (change it if you publish to your own tap).
 homebrew_casks:
-  - name: go-template
+  - name: stalk
     binaries:
-      - go-template
+      - stalk
     repository:
       owner: justanotherspy
       name: homebrew-tap
       branch: main
       token: '{{ index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}'
     directory: Casks
-    homepage: "https://github.com/justanotherspy/go-template"
+    homepage: "https://github.com/justanotherspy/stalk"
     description: "A batteries-included template for building Go command-line tools"
     license: MIT
     url:
-      verified: "github.com/justanotherspy/go-template/"
+      verified: "github.com/justanotherspy/stalk/"
     commit_author:
       name: github-actions[bot]
       email: 41898282+github-actions[bot]@users.noreply.github.com
-    commit_msg_template: "chore(cask): go-template {{ .Tag }}"
+    commit_msg_template: "chore(cask): stalk {{ .Tag }}"
     # The release is published as a prerelease and only promoted to "latest"
     # after artifacts attach, so force the cask push goreleaser would otherwise
     # skip for a prerelease — but only when a tap token is configured. Without
@@ -128,7 +128,7 @@ homebrew_casks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/go-template"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/stalk"]
           end
 
 release:

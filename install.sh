@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# go-template installer — download a prebuilt release binary instead of compiling.
+# stalk installer — download a prebuilt release binary instead of compiling.
 #
 # Fetches the release archive that matches the host OS/arch from GitHub
 # Releases, verifies it against checksums.txt (fail closed on mismatch), and
 # installs the binary into an on-PATH directory. This is the fast alternative to
-# `go install github.com/justanotherspy/go-template/cmd/go-template@latest`.
+# `go install github.com/justanotherspy/stalk/cmd/stalk@latest`.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/justanotherspy/go-template/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/justanotherspy/stalk/main/install.sh | bash
 #
-# Environment overrides (PREFIX is the binary name uppercased, e.g. GO_TEMPLATE):
+# Environment overrides (PREFIX is the binary name uppercased, e.g. STALK):
 #   <PREFIX>_VERSION       release to install, e.g. v0.2.0 (default: latest release)
 #   <PREFIX>_INSTALL_DIR   target directory (default: /usr/local/bin, else ~/.local/bin)
 #   GITHUB_TOKEN/GH_TOKEN  used (if set) to authenticate GitHub API calls
 set -euo pipefail
 
-REPO="justanotherspy/go-template"
-BINARY="go-template"
+REPO="justanotherspy/stalk"
+BINARY="stalk"
 
 # Override env vars track the binary name so repos generated from this template
 # work without edits: PREFIX is BINARY uppercased, non-alphanumerics → '_'.

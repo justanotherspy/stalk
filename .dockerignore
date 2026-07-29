@@ -30,6 +30,6 @@ install.sh
 .gitattributes
 .gitignore
 .pre-commit-config.yaml
-.go-template.yaml.example
+.stalk.yaml.example
 Dockerfile
 .dockerignore

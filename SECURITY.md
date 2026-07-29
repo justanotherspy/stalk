@@ -13,7 +13,7 @@ Report privately through GitHub's [security advisories][advisories] ("Report a
 vulnerability" on the **Security** tab), or contact the maintainers listed in
 [CODEOWNERS](.github/CODEOWNERS).
 
-[advisories]: https://github.com/justanotherspy/go-template/security/advisories/new
+[advisories]: https://github.com/justanotherspy/stalk/security/advisories/new
 
 Please include:
 

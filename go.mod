@@ -1,4 +1,4 @@
-module github.com/justanotherspy/go-template
+module github.com/justanotherspy/stalk
 
 go 1.26.0
 

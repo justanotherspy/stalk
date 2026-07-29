@@ -37,7 +37,7 @@ func TestRootHelp(t *testing.T) {
 		t.Fatalf("execute help: %v", err)
 	}
 
-	if !strings.Contains(out.String(), "go-template") {
+	if !strings.Contains(out.String(), "stalk") {
 		t.Errorf("help output missing command name\ngot:\n%s", out.String())
 	}
 }
