@@ -12,9 +12,6 @@
 - name: github-actions
   color: 2088ff
   description: GitHub Actions / CI workflows
-- name: docker
-  color: 1d63ed
-  description: Docker images or the Dockerfile
 - name: python
   color: 3572a5
   description: Hash-pinned Python CI tools (.github/requirements)
