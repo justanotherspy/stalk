@@ -4,23 +4,54 @@ Guidance for Claude Code (and humans) working in this repository.
 
 ## What this is
 
-A Go command-line application built with
-[Cobra](https://github.com/spf13/cobra) and
-[Viper](https://github.com/spf13/viper). It ships with CI, linting, security
-scanning, and an automated release pipeline.
+stalk is a per-user daemon that polls configured event sources (GitHub pull
+requests, any HTTP JSON endpoint) and fans events out to Claude Code sessions.
+A session gets events through `stalk stream` (a plugin monitor whose stdout
+lines become notifications) and controls its own subscriptions through
+`stalk mcp`. Built with [Cobra](https://github.com/spf13/cobra) and
+[Viper](https://github.com/spf13/viper) on the go-template baseline, so CI,
+linting, security scanning, and releases were wired up from commit one.
+
+**Unix only** — unix domain sockets, peer credentials, and `/proc` (or `sysctl`
+on macOS). There is no Windows build and no container image: a container cannot
+reach the host's per-user socket, peer credentials, or process table, so PR 01
+removed the Dockerfile and its workflow rather than ship something that only
+looks like it works.
+
+**Status: v1 in progress.** `daemon`, `stream`, `mcp`, `status`, and
+`config check` are registered stubs that exit non-zero. `version` is the only
+command that does anything.
+
+## Specs
+
+`docs/` holds the source of truth for v1. They supersede the copies in Drive —
+edit them here, in the same PR as the code they describe.
+
+| Document | Owns |
+| -------- | ---- |
+| [`docs/MVP-SPEC.md`](docs/MVP-SPEC.md) | Scope, sources, config schema, milestones, acceptance criteria |
+| [`docs/PROTOCOL.md`](docs/PROTOCOL.md) | `stalk/1`: socket path, framing, methods, error codes, delivery semantics |
+| [`docs/DB-SCHEMA.md`](docs/DB-SCHEMA.md) | SQLite schema v1: DDL, dedupe keys, cursors, retention, migrations |
 
 ## Layout
 
 ```
 cmd/stalk/            main package; injects build info and calls internal/cli
+cmd/gen-docs/         dev tool: renders shell completions + man pages
 internal/cli/         command tree (root + subcommands), config loading
-internal/examples/    reference tests: fuzzing, benchmarks, testing/synctest
+  root.go             root command, viper wiring, Execute (exit codes)
+  stub.go             the shared "not implemented" RunE; deleted when the last stub goes
+  daemon.go stream.go mcp.go status.go config.go version.go
+  testdata/script/    testscript (txtar) CLI tests
+docs/                 PROTOCOL.md, DB-SCHEMA.md, MVP-SPEC.md (source of truth)
 .github/workflows/    CI, fuzz (nightly), CodeQL, Semgrep, secret-scan, zizmor,
-                      labeler, release-drafter, release
+                      scorecard, vuln, labeler, release-drafter, release
 .github/ISSUE_TEMPLATE/  bug-report + feature-request issue forms
 .github/labels.yml    canonical repo labels (synced by the labeler workflow)
+.stalk.yaml.example   every config key, documented
 .golangci.yml         golangci-lint v2 config (linters + formatters)
-.goreleaser.yaml      GoReleaser v2 build/release config
+.goreleaser.yaml      GoReleaser v2 build/release config (linux + darwin only)
+.mcp.json             MCP servers for dev sessions (github, linear, context7, …)
 install.sh            checksum-verified prebuilt-binary installer (curl | bash)
 SECURITY.md           security policy / private vulnerability reporting
 CONTRIBUTING.md       contributor guide
@@ -44,7 +75,7 @@ Run `make help` for the full list. The essentials:
 | `make test`          | Tests with race detector + coverage                |
 | `make cover-report`  | Markdown coverage report (CI posts it on PRs)      |
 | `make fuzz FUZZ=Fuzz…` | Actively fuzz one target (FUZZTIME, FUZZPKG)      |
-| `make fuzz-all`      | Briefly fuzz every target (nightly workflow)       |
+| `make fuzz-all`      | Briefly fuzz every target (nightly workflow; no targets yet) |
 | `make bench`         | Run benchmarks (BENCH, BENCHPKG, BENCHTIME)        |
 | `make bench-save` / `make benchstat-cmp` | Sample benchmarks → compare with benchstat |
 | `make profile`       | Write CPU+mem profiles for a benchmark             |
@@ -74,16 +105,29 @@ Run `make help` for the full list. The essentials:
   `make modernize-check` (`go fix -diff`, which exits non-zero on any diff), so
   the tree must stay modernized. Run `go tool fix help` to list the fixers.
 - All GitHub Actions are pinned to commit SHAs; Dependabot keeps them current.
-- Add new subcommands under `internal/cli/` and register them in `root.go`.
+- Add new subcommands under `internal/cli/`, one file per command, and register
+  them in `newRootCmd`. A constructor you forget to register fails lint, not
+  just the tests (`unused`).
+- Commands that exist but aren't built yet use `RunE: notImplemented`
+  (`internal/cli/stub.go`), which exits non-zero with the command path. When you
+  implement one, drop that line; when the last one goes, delete `stub.go`.
+- A command group (like `config`) must set **both** `RunE` and `Args`. Cobra
+  skips argument validation entirely for a command that isn't runnable, so a
+  group with no `RunE` prints help and exits **zero** on an unknown subcommand.
 - Build metadata (`version`, `commit`, `date`) lives in `package main` and is
   injected via `-ldflags`. Update the user-facing version in the `VERSION` file.
 
 ## Testing, fuzzing & profiling
 
-`internal/examples/` is reference code — it demonstrates each convention below
-on a tiny pure function (`NormalizeKey`) and a tiny concurrency helper
-(`PollUntil`). Replace or delete it when you build real packages; nothing else
-imports it.
+The template shipped an `internal/examples/` package demonstrating each
+convention below; PR 01 deleted it, so the conventions are recorded here and the
+tooling currently has nothing to chew on. Where each pattern lands:
+
+| Pattern | Where it belongs |
+| ------- | ---------------- |
+| Fuzzing | The `stalk/1` NDJSON codec — framing edges, oversized frames, batch rejection |
+| `testing/synctest` | Poll-scheduler backoff/jitter, and delivery retry/TTL timing |
+| Benchmarks | Whatever turns out to be hot; nothing is yet |
 
 - **Coverage on PRs.** `make test` writes `coverage.out`; `make cover-report`
   renders it as Markdown. CI (`ci.yml`) publishes that report to the job summary
@@ -93,19 +137,22 @@ imports it.
   `make cover-total` against a threshold in the workflow.
 - **Fuzzing.** Write `FuzzXxx(f *testing.F)` targets next to the code; seed them
   with `f.Add(...)` for representative inputs and assert *invariants*, not fixed
-  outputs (see `FuzzNormalizeKey`). Seeds run as ordinary unit tests under
-  `make test`, so invariants are checked on every PR. `make fuzz FUZZ=FuzzXxx`
-  does active mutation fuzzing locally; the nightly **`fuzz.yml`** workflow runs
-  `make fuzz-all` (auto-discovers every target). A crasher is minimized into
-  `testdata/fuzz/<FuzzXxx>/` — **commit it as a regression seed**, then fix the
-  bug.
+  outputs. Seeds run as ordinary unit tests under `make test`, so invariants are
+  checked on every PR. `make fuzz FUZZ=FuzzXxx` does active mutation fuzzing
+  locally; the nightly **`fuzz.yml`** workflow runs `make fuzz-all`
+  (auto-discovers every target, and is a no-op until the first one exists). A
+  crasher is minimized into `testdata/fuzz/<FuzzXxx>/` — **commit it as a
+  regression seed**, then fix the bug.
 - **Concurrency with `testing/synctest`.** Stable since Go 1.25; the old
   `synctest.Run` was removed in 1.26 — always use **`synctest.Test(t, func(t
   *testing.T){…})`** with `synctest.Wait()`. It runs goroutines in an isolated
   "bubble" with a fake clock, so time-dependent concurrent code is deterministic
   and instant (no real sleeps, no flakes). Keep these at the unit layer: no real
-  network, processes, or goroutines started outside the bubble. See
-  `synctest_test.go`.
+  network, processes, or goroutines started outside the bubble.
+- **CLI behaviour** is covered by testscript/txtar scripts in
+  `internal/cli/testdata/script/`. They are auto-discovered — drop in a `.txtar`
+  file and it runs. `! exec stalk foo` asserts a non-zero exit, `stderr '…'` the
+  message, `! stdout .` that nothing reached stdout.
 - **Benchmarks & profiling.** Use the modern **`for b.Loop() { … }`** form
   (Go 1.24+) with `b.ReportAllocs()`; it keeps setup out of the timed region and
   prevents dead-code elimination. `make bench` runs them; `make profile`
@@ -155,13 +202,17 @@ the new number.
 
 ### Distribution / cask
 
+- Release artifacts are **linux and darwin, amd64 and arm64** only. Adding
+  `windows` back to `.goreleaser.yaml` would produce binaries that cannot run.
+- Each archive bundles `docs/`, the generated `completions/` and `man/`, plus
+  LICENSE and README. Those two generated directories come from the GoReleaser
+  `before` hook (`go run ./cmd/gen-docs`) — don't commit them.
 - `homebrew_casks` in `.goreleaser.yaml` generates the cask; the tap owner is
-  `justanotherspy` (change it to publish to a different tap). The cask name,
-  binary, homepage, and url track the repo name, so repos generated from the
-  template publish their own cask automatically.
+  `justanotherspy`. The cask name, binary, homepage, and url track the repo name.
 - `install.sh` is a standalone `curl | bash` installer that downloads the
   matching release archive, verifies it against `checksums.txt`, and installs
-  the binary. Its override env vars (`<BINARY>_VERSION` / `<BINARY>_INSTALL_DIR`)
-  track the binary name, matching the `viper` env prefix.
+  the binary. It refuses to run anywhere but Linux and macOS. Its override env
+  vars (`STALK_VERSION` / `STALK_INSTALL_DIR`) track the binary name, matching
+  the `viper` env prefix.
 - `make snapshot` builds locally with `--skip=sign,sbom`, so cosign and syft are
   only needed in CI.

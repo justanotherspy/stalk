@@ -5,42 +5,51 @@
 [![Release](https://img.shields.io/github/v/release/justanotherspy/stalk?sort=semver)](https://github.com/justanotherspy/stalk/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/justanotherspy/stalk.svg)](https://pkg.go.dev/github.com/justanotherspy/stalk)
 
-A Go command-line tool, with CI, linting, security scanning, and automated
-releases wired up from day one.
+stalk watches things on behalf of your Claude Code sessions.
 
-## Features
+One per-user daemon polls the sources you configure — GitHub pull requests, any
+HTTP JSON endpoint — and fans events out to every session that asked for them.
+Each session runs a thin `stalk stream` process, whose stdout lines become
+Claude Code notifications, and a `stalk mcp` server that lets the agent
+subscribe and unsubscribe on its own.
 
-- **CLI** built on Cobra + Viper (config file + env var support).
-- **Makefile** covering deps, tools, lint, format, test, build, run, security,
-  and release tasks. `make help` lists everything.
-- **golangci-lint v2** with a curated linter + formatter set.
-- **`go fix` modernizers** (Go 1.26): `make modernize` rewrites code to current
-  idioms (`any`, `minmax`, `rangeint`, …); CI enforces it stays modernized.
-- **CI** (`ci.yml`): lint, a **`go fix` modernizer check**, test matrix
-  (Go 1.26.x), build, govulncheck, and a `go mod tidy` check. Each PR gets a
-  **sticky code-coverage comment** (and a job summary) generated from
-  `go tool cover` — no third-party service or account.
-- **Testing standards** (`internal/examples/`): native **fuzzing** (with a
-  nightly `fuzz.yml` workflow), deterministic concurrency tests via
-  **`testing/synctest`**, and **benchmarks/profiling** (`b.Loop`, pprof,
-  benchstat). See [`CLAUDE.md`](CLAUDE.md#testing-fuzzing--profiling).
-- **Security**: CodeQL (Go), Semgrep CE uploading SARIF to code scanning, and
-  govulncheck.
-- **Releases**: release-drafter + GoReleaser, driven by a `VERSION` file.
-  `checksums.txt` is cosign-signed (keyless) and each archive ships an SPDX SBOM.
-- **Distribution**: GoReleaser publishes a Homebrew cask to a shared tap, and
-  `install.sh` downloads a checksum-verified binary in one line.
-- **Dependabot** for Go modules and GitHub Actions, with update groups.
-- All GitHub Actions **pinned to commit SHAs**.
-- **Community health files**: `SECURITY.md`, `CONTRIBUTING.md`, and issue forms.
-- `gopls` LSP, `CLAUDE.md`, and a curated [`.mcp.json`](#mcp-servers-claude-code)
-  preconfigured for Claude Code, plus a project-scoped `go-lsp` plugin
-  ([`.claude/skills/go-lsp/.lsp.json`](.claude/skills/go-lsp/.lsp.json)) that gives
-  Claude Code real-time Go code intelligence (diagnostics, go-to-definition,
-  references, hover) through gopls.
+One poll loop per watched thing no matter how many sessions care. Credentials,
+backoff, rate limits, and cleanup live in the daemon, not in any session's
+lifecycle.
+
+> **v1 is under construction.** The command tree is in place but the
+> subcommands below are stubs that exit non-zero — only `stalk version` does
+> anything today. The specs in [`docs/`](#docs) are the source of truth for what
+> is being built.
+
+## Docs
+
+| Document | What's in it |
+| -------- | ------------ |
+| [`docs/MVP-SPEC.md`](docs/MVP-SPEC.md) | Scope, sources, config, milestones, acceptance criteria |
+| [`docs/PROTOCOL.md`](docs/PROTOCOL.md) | The `stalk/1` wire protocol: socket, framing, methods, delivery semantics |
+| [`docs/DB-SCHEMA.md`](docs/DB-SCHEMA.md) | SQLite schema v1: DDL, dedupe keys, cursors, retention |
+| [`CLAUDE.md`](CLAUDE.md) | Repo layout, commands, and conventions |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Development workflow |
+| [`SECURITY.md`](SECURITY.md) | Reporting a vulnerability |
+
+## How it fits together
+
+```text
+Claude Code session ──(plugin monitor)──▶ stalk stream ──UDS──▶
+Claude Code session ──(plugin MCP)─────▶ stalk mcp    ──UDS──▶  stalk daemon ──HTTPS──▶ GitHub / endpoints
+                                         stalk status ──UDS──▶      │
+                                                                 SQLite
+```
+
+The daemon owns all state. Clients hold none, connect over a unix domain socket
+in the user's runtime directory, and are auto-spawned on demand. There is no TCP
+listener and no multi-user mode.
 
 ## Requirements
 
+- Linux or macOS. stalk is built on unix domain sockets, peer credentials, and
+  `/proc` (or `sysctl` on macOS); there is no Windows build.
 - Go 1.26 or newer (`GOTOOLCHAIN=auto` will fetch the right toolchain).
 - `make`.
 
@@ -55,20 +64,34 @@ make run ARGS="version"
 ## Usage
 
 ```sh
-stalk            # prints help
-stalk version    # prints version / build info
+stalk                 # prints help
+stalk version         # prints version / build info
 stalk --help
 ```
 
+The v1 command tree, all of it stubbed out for now:
+
+| Command | What it will do |
+| ------- | --------------- |
+| `stalk daemon` | Run the per-user daemon: socket, SQLite state, poll loops |
+| `stalk stream` | Print this session's events to stdout, one line each (run as a plugin monitor) |
+| `stalk mcp` | Serve the subscribe/unsubscribe MCP tools to the agent over stdio |
+| `stalk status` | Report daemon uptime, sessions, subscriptions, and poll health |
+| `stalk config check` | Validate the resolved configuration |
+
+Each of these exits non-zero with a "not implemented" message until the PR that
+builds it lands. See [`docs/MVP-SPEC.md`](docs/MVP-SPEC.md) §7 for the
+milestones.
+
 Configuration is read (in order of precedence) from flags, environment
 variables prefixed with `STALK_`, and an optional config file
-(`--config`, default `$HOME/.stalk.yaml`).
+(`--config`, default `$HOME/.stalk.yaml`). See
+[`.stalk.yaml.example`](.stalk.yaml.example) for every key.
 
 ## Install
 
-Once your project has a published release, users can install it any of these
-ways. (Repos created from the template inherit this wiring — the binary, cask,
-and tap references are rewritten to match the new repo.)
+There is nothing to install yet — the first release is still ahead. Once it
+lands, any of these will work.
 
 ### Homebrew (macOS and Linux)
 
@@ -131,7 +154,7 @@ cosign verify-blob --bundle checksums.txt.sigstore.json \
 | `make modernize`| Apply `go fix` modernizers       |
 | `make test`     | Run tests with race + coverage   |
 | `make cover-report` / `make cover-total` | Markdown coverage report / total % |
-| `make fuzz FUZZ=Fuzz…` | Actively fuzz one target  |
+| `make fuzz FUZZ=Fuzz…` | Actively fuzz one target (none yet — the wire codec brings the first) |
 | `make fuzz-all` | Briefly fuzz every target        |
 | `make bench`    | Run benchmarks                   |
 | `make bench-save` / `make benchstat-cmp` | Sample benchmarks → compare with benchstat |
@@ -154,12 +177,13 @@ with a missing token simply won't connect; the others still work).
 
 | Server | Type | What it's for | Setup |
 | ------ | ---- | ------------- | ----- |
-| `github` | remote | Issues, PRs, CI status, code search on GitHub | Export `GITHUB_MCP_TOKEN` (a [fine-grained PAT](https://github.com/settings/personal-access-tokens)), or run `/mcp` to authenticate via OAuth |
+| `github` | remote | Issues, PRs, CI status, code search on GitHub | Export `GITHUB_TOKEN` (a [fine-grained PAT](https://github.com/settings/personal-access-tokens)), or run `/mcp` to authenticate via OAuth |
 | `linear` | remote | Find/create/update Linear issues & projects | Export `LINEAR_API_KEY` (Linear → Settings → Security & access). Drop the `Authorization` header to use `/mcp` OAuth instead |
 | `context7` | remote | Up-to-date, version-specific library docs | Export `CONTEXT7_API_KEY` from [context7.com/dashboard](https://context7.com/dashboard) |
-| `sprite` | remote | [sprites.dev](https://sprites.dev) agent sandboxes | Export `SPRITES_API_TOKEN` from the Sprites dashboard (or `sprite login`) |
+| `sprite` | remote | [sprites.dev](https://sprites.dev) agent sandboxes | Export `SPRITES_TOKEN` from the Sprites dashboard (or `sprite login`) |
 | `semgrep` | local | Scan code for security vulnerabilities | Needs [`uv`](https://docs.astral.sh/uv/) (`uvx`); optional `SEMGREP_APP_TOKEN` for platform features |
-| `fly` | local | Provision & manage Fly.io apps | Install [`flyctl`](https://fly.io/docs/flyctl/) and `fly auth login`; optional `FLY_ACCESS_TOKEN` |
+| `fly` | local | Provision & manage Fly.io apps | Install [`flyctl`](https://fly.io/docs/flyctl/) and `fly auth login`; optional `FLY_API_TOKEN` |
+| `shuck` | local | Failing-CI drill-down for a PR (see [Claude plugins](#claude-plugins)) | Install the [`shuck`](https://github.com/justanotherspy/shuck) binary; uses the same `GITHUB_TOKEN` |
 
 Remove any server you don't want by deleting its entry from `.mcp.json`.
 

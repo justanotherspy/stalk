@@ -1,8 +1,15 @@
 # With no args the root command prints help; --help does too and exits 0.
 exec stalk --help
-stdout 'starter template for building Go command-line applications'
+stdout 'stalk watches things on behalf of your Claude Code sessions'
 stdout 'version'
 stdout 'completion'
+
+# Every v1 subcommand is wired into the tree and listed in help.
+stdout 'daemon'
+stdout 'stream'
+stdout 'mcp'
+stdout 'status'
+stdout 'config'
 
 # Bare invocation also shows help (RunE -> cmd.Help()).
 exec stalk

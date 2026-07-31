@@ -33,10 +33,11 @@ builds:
       - -X main.commit={{ .Commit }}
       - -X main.date={{ .Date }}
     mod_timestamp: "{{ .CommitTimestamp }}"
+    # Unix only: stalk is built on unix domain sockets, peer credentials, and
+    # /proc (or sysctl on darwin). There is no windows story for v1.
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
@@ -51,11 +52,9 @@ archives:
     files:
       - LICENSE
       - README.md
+      - docs/*
       - completions/*
       - man/*
-    format_overrides:
-      - goos: windows
-        formats: [zip]
 
 checksum:
   name_template: "checksums.txt"
@@ -108,7 +107,7 @@ homebrew_casks:
       token: '{{ index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}'
     directory: Casks
     homepage: "https://github.com/justanotherspy/stalk"
-    description: "A batteries-included template for building Go command-line tools"
+    description: "Watches things on behalf of your Claude Code sessions"
     license: MIT
     url:
       verified: "github.com/justanotherspy/stalk/"

@@ -30,9 +30,17 @@ var (
 
 func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "stalk",
-		Short:         "A starter Go CLI",
-		Long:          "stalk is a starter template for building Go command-line applications.",
+		Use:   "stalk",
+		Short: "Watch things on behalf of your Claude Code sessions",
+		Long: `stalk watches things on behalf of your Claude Code sessions.
+
+A single per-user daemon polls the sources you configure (GitHub pull requests,
+any HTTP JSON endpoint) and fans events out to every session that asked for
+them. One poll loop per watched thing no matter how many sessions care, and
+credentials, backoff, rate limits, and cleanup all live in the daemon rather
+than in any session's lifecycle.
+
+See docs/MVP-SPEC.md for the shape of v1.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -64,7 +72,14 @@ func newRootCmd() *cobra.Command {
 	pf.StringVar(&logLevel, "log-level", "info", "log level: debug, info, warn, error")
 	pf.StringVar(&logFormat, "log-format", "text", "log format: text or json")
 
-	cmd.AddCommand(newVersionCmd())
+	cmd.AddCommand(
+		newDaemonCmd(),
+		newStreamCmd(),
+		newMCPCmd(),
+		newStatusCmd(),
+		newConfigCmd(),
+		newVersionCmd(),
+	)
 
 	return cmd
 }

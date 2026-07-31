@@ -21,8 +21,61 @@ log:
   format: text
 
 # ---------------------------------------------------------------------------
-# Add your application's own settings below. Anything here is readable via
-# viper (e.g. viper.GetString("greeting")) and overridable with
-# STALK_GREETING or --flags you bind in internal/cli.
+# Everything below is the stalk daemon's own configuration. It is commented out
+# because nothing reads it yet -- `stalk config check` and the daemon land in
+# later PRs. See docs/MVP-SPEC.md section 4 for the authoritative schema.
 #
-# greeting: hello
+# Uncomment `version` and at least one source once the daemon exists.
+
+# Schema version of this file. Bumped only on a breaking config change.
+# version: 1
+
+# daemon:
+#   # Shut down after this long with no connected sessions and no active
+#   # subscriptions. The next client that needs a daemon respawns one.
+#   idle_exit_after: 30m
+#
+#   # When a session's stream disconnects without saying goodbye, keep its
+#   # subscriptions polling this long before cancelling them. A reattach within
+#   # the window resumes cleanly and flushes whatever was missed.
+#   disconnect_grace: 10m
+#
+#   # Refuse further subscribe calls from a session past this many.
+#   max_subscriptions_per_session: 32
+#
+#   retention:
+#     events_max_age: 14d
+#     events_max_rows: 50000
+
+# Named event sources. The name is what an agent passes to subscribe_event, so
+# keep them short and memorable.
+#
+# `token_var` is the NAME of an environment variable, never a token itself:
+# secrets stay out of this file and out of viper entirely. The daemon reads the
+# variable at poll time.
+#
+# Caveat worth knowing: the daemon inherits its environment from whichever
+# client auto-spawned it first, which inherited it from Claude Code, which
+# inherited it from your login shell. Export these in your shell profile, not
+# per-session, or the daemon may not see them.
+#
+# sources:
+#   github-personal:
+#     type: github
+#     # Unset or empty falls back to the `gh auth` chain, then to
+#     # unauthenticated requests (60 req/h, so polls are throttled to 120s).
+#     token_var: GITHUB_PERSONAL_TOKEN
+#
+#   github-work:
+#     type: github
+#     token_var: GITHUB_WORK_TOKEN
+#     # Subscribe targets outside these owners are rejected.
+#     allowed_owners: [some-org]
+#
+#   deploy-status:
+#     type: http_poll
+#     url: https://deploys.internal.example/api/recent.json
+#     interval: 30s          # minimum 10s
+#     items_path: "deploys"  # key holding the array; omit to use the root
+#     id_field: "id"         # dedupe field; omit to hash the whole item
+#     token_var: DEPLOY_TOKEN

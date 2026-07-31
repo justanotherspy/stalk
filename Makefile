@@ -49,7 +49,7 @@ BENCHPKG    ?= ./...
 BENCHTIME   ?= 1s
 BENCHCOUNT  ?= 6
 BENCHFILE   ?= bench-new.txt
-PROFPKG     ?= ./internal/examples
+PROFPKG     ?= ./internal/cli
 PROFILE_DIR ?= profiles
 
 # ==============================================================================
@@ -158,7 +158,9 @@ actionlint: ## Lint GitHub Actions workflows (runs shellcheck on run: blocks if 
 # Coverage excludes pure entrypoints that aren't unit-tested by design: the
 # cmd/* main packages (the binary and the gen-docs doc generator). Override the
 # pattern (an extended regexp matched against coverage.out paths) to change it,
-# e.g. `make test COVER_EXCLUDE='/cmd/|/internal/examples/'`.
+# e.g. `make test COVER_EXCLUDE='/cmd/|/internal/testutil/'`. Note that grep -v
+# exits 1 when it matches nothing, so a pattern that excludes every line fails
+# the recipe.
 COVER_EXCLUDE ?= /cmd/
 
 # Drop excluded files from the profile in place, preserving the leading
@@ -278,22 +280,6 @@ man: ## Generate man pages into ./man
 .PHONY: dist-extras
 dist-extras: ## Generate completions + man pages
 	$(GO) run ./cmd/gen-docs
-
-# ---- Container --------------------------------------------------------------
-IMAGE     ?= stalk
-IMAGE_TAG ?= dev
-
-.PHONY: docker-build
-docker-build: ## Build a local container image (IMAGE=stalk IMAGE_TAG=dev)
-	docker build \
-		--build-arg VERSION=$(VERSION) \
-		--build-arg COMMIT=$(COMMIT) \
-		--build-arg DATE=$(DATE) \
-		-t $(IMAGE):$(IMAGE_TAG) .
-
-.PHONY: docker-run
-docker-run: ## Run the local container image (pass args via ARGS="...")
-	docker run --rm $(IMAGE):$(IMAGE_TAG) $(ARGS)
 
 # ---- Security ---------------------------------------------------------------
 .PHONY: vuln

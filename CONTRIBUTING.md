@@ -7,7 +7,7 @@ working in this repository.
 
 ```sh
 make tools   # install pinned dev tooling (golangci-lint, goreleaser, gopls, …)
-make ci      # deps + lint + test + build — what CI runs
+make ci      # deps + lint + modernize-check + test + build — what CI runs
 ```
 
 Run `make help` for the full list of targets.
@@ -34,9 +34,15 @@ group changelog entries and pick the next version.
 
 ## Code style & conventions
 
-- Go 1.25+. `GOTOOLCHAIN=auto` fetches the right toolchain on demand.
+- Go 1.26+. `GOTOOLCHAIN=auto` fetches the right toolchain on demand.
+- Linux or macOS only — stalk relies on unix domain sockets, peer credentials,
+  and `/proc` (or `sysctl` on macOS).
 - Keep `make lint` clean; format with `make fmt` before committing.
-- Add new subcommands under `internal/cli/` and register them in `root.go`.
+- Add new subcommands under `internal/cli/`, one file per command, and register
+  them in `newRootCmd` (`root.go`).
+- Behaviour changes belong in the specs too: [`docs/PROTOCOL.md`](docs/PROTOCOL.md),
+  [`docs/DB-SCHEMA.md`](docs/DB-SCHEMA.md), and [`docs/MVP-SPEC.md`](docs/MVP-SPEC.md)
+  are the source of truth and should move in the same PR as the code.
 - See [CLAUDE.md](CLAUDE.md) for the full layout and conventions.
 
 ## Reporting bugs & requesting features
