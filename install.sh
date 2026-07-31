@@ -82,13 +82,14 @@ resolve_tag() {
   echo "$tag"
 }
 
-# Map uname -> the goreleaser os/arch used in the asset names.
+# Map uname -> the goreleaser os/arch used in the asset names. stalk is unix
+# only (unix domain sockets, peer credentials, /proc), so there are no windows
+# release assets to download.
 detect_os() {
   case "$(uname -s)" in
-    Linux)                 echo linux ;;
-    Darwin)                echo darwin ;;
-    MINGW*|MSYS*|CYGWIN*)  echo windows ;;
-    *) die "unsupported OS $(uname -s)" ;;
+    Linux)  echo linux ;;
+    Darwin) echo darwin ;;
+    *) die "unsupported OS $(uname -s) -- stalk supports Linux and macOS only" ;;
   esac
 }
 detect_arch() {
@@ -112,16 +113,15 @@ pick_install_dir() {
 }
 
 main() {
-  local tag version os arch ext binname archive base
+  local tag version os arch binname archive base
   tag="$(resolve_tag)"
   version="${tag#v}"
   os="$(detect_os)"
   arch="$(detect_arch)"
+  binname="$BINARY"
 
-  if [ "$os" = "windows" ]; then ext="zip"; binname="${BINARY}.exe"; else ext="tar.gz"; binname="$BINARY"; fi
-
-  # Asset names follow .goreleaser.yaml: <binary>_<version>_<os>_<arch>.<ext>
-  archive="${BINARY}_${version}_${os}_${arch}.${ext}"
+  # Asset names follow .goreleaser.yaml: <binary>_<version>_<os>_<arch>.tar.gz
+  archive="${BINARY}_${version}_${os}_${arch}.tar.gz"
   base="https://github.com/${REPO}/releases/download/${tag}"
 
   tmpd="$(mktemp -d)"
@@ -139,14 +139,8 @@ main() {
   [ "$got" = "$expected" ] || die "checksum mismatch for $archive (expected $expected, got $got)"
   log "checksum verified"
 
-  # Extract the archive (binary plus bundled man page / completions).
-  case "$ext" in
-    tar.gz) tar -xzf "$tmpd/$archive" -C "$tmpd" ;;
-    zip)
-      need_cmd unzip || die "need 'unzip' to extract $archive"
-      unzip -oq "$tmpd/$archive" -d "$tmpd"
-      ;;
-  esac
+  # Extract the archive (binary plus bundled docs / man page / completions).
+  tar -xzf "$tmpd/$archive" -C "$tmpd" || die "could not extract $archive"
   [ -f "$tmpd/$binname" ] || die "$binname not found inside $archive"
 
   # Install atomically into the chosen dir.
