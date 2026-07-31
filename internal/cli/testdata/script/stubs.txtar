@@ -1,0 +1,41 @@
+# Every v1 subcommand is wired into the tree but not built yet. Each one has to
+# fail loudly -- a non-zero exit and a message on stderr -- so that a stub is
+# never mistaken for a command that ran and did nothing.
+
+! exec stalk daemon
+stderr 'error: stalk daemon: not implemented'
+! stdout .
+
+! exec stalk stream
+stderr 'error: stalk stream: not implemented'
+! stdout .
+
+! exec stalk mcp
+stderr 'error: stalk mcp: not implemented'
+! stdout .
+
+! exec stalk status
+stderr 'error: stalk status: not implemented'
+! stdout .
+
+! exec stalk config check
+stderr 'error: stalk config check: not implemented'
+! stdout .
+
+# `config` on its own is a command group: it prints help and exits 0 ...
+exec stalk config
+stdout 'check'
+stdout 'Usage:'
+
+# ... but an unknown subcommand under it still fails (cobra skips argument
+# validation for a non-runnable command, so `config` sets both RunE and Args).
+! exec stalk config bogus
+stderr 'unknown command "bogus" for "stalk config"'
+
+# Stubs take no arguments.
+! exec stalk daemon extra-arg
+stderr 'unknown command "extra-arg" for "stalk daemon"'
+
+# The one command that IS implemented still works.
+exec stalk version
+stdout 'stalk e2e'
