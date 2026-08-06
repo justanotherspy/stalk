@@ -19,6 +19,7 @@ func TestParseDuration(t *testing.T) {
 		{"1d12h", 36 * time.Hour},
 		{" 30m ", 30 * time.Minute},
 		{"1500ms", 1500 * time.Millisecond},
+		{"106751d", 106751 * 24 * time.Hour}, // largest representable whole-day count
 	}
 	for _, tt := range tests {
 		got, err := ParseDuration(tt.in)
@@ -45,6 +46,15 @@ func TestParseDurationErrors(t *testing.T) {
 		{"14dd", "bad duration"},
 		{"1.5d", "bad duration"},
 		{"-14d", "bad duration"},
+		{"1d-5h", "negative component"},
+		// int64 overflow must be rejected, never wrapped: some wrapped values
+		// come out small and POSITIVE and would pass every downstream check.
+		{"106752d", "too large"},
+		{"213504d", "too large"},
+		{"300000d", "too large"},
+		{"106751991167301d", "too large"},
+		{"99999999999999999999d", "too large"},
+		{"106751d24h", "too large"},
 	}
 	for _, tt := range tests {
 		_, err := ParseDuration(tt.in)

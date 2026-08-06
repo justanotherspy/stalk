@@ -49,10 +49,12 @@ func newConfigCheckCmd() *cobra.Command {
 		Short: "Validate the resolved configuration",
 		Long: `Validate the resolved configuration and report what stalk would do with it.
 
-Checks that every source is well formed, that intervals are within their
-allowed range, and that each token_var names an environment variable that is
-actually set. Reports which file was loaded and exits non-zero on the first
-problem. Never prints token values, only whether a credential resolved.`,
+Checks that every source is well formed and that intervals are within their
+allowed range, then reports each source's resolved auth mode. A token_var
+naming an unset environment variable falls back down the auth chain (gh CLI,
+then unauthenticated) and is flagged. Reports which file was loaded and exits
+non-zero on the first problem. Never prints token values, only how a
+credential resolved.`,
 		Args: cobra.NoArgs,
 		RunE: runConfigCheck,
 	}
@@ -103,12 +105,9 @@ func runConfigCheck(cmd *cobra.Command, _ []string) error {
 	fmt.Fprintf(out, "sources (%d):\n", len(cfg.Sources))
 	for _, name := range slices.Sorted(maps.Keys(cfg.Sources)) {
 		src := cfg.Sources[name]
-		mode, err := config.ResolveAuthMode(&src, os.LookupEnv, func() bool {
+		mode, note := config.ResolveAuthMode(&src, os.LookupEnv, func() bool {
 			return ghTokenAvailable(cmd.Context())
 		})
-		if err != nil {
-			return err
-		}
 		fmt.Fprintf(out, "  %s: %s auth=%s", name, src.Type, mode)
 		switch src.Type {
 		case config.SourceGitHub:
@@ -121,6 +120,9 @@ func runConfigCheck(cmd *cobra.Command, _ []string) error {
 		case config.SourceHTTPPoll:
 			fmt.Fprintf(out, " interval=%s url=%s", config.FormatDuration(src.Interval), src.URL)
 		}
+		if note != "" {
+			fmt.Fprintf(out, " (%s)", note)
+		}
 		fmt.Fprintln(out)
 	}
 	fmt.Fprintf(out, "ok: %d sources\n", len(cfg.Sources))
@@ -129,10 +131,14 @@ func runConfigCheck(cmd *cobra.Command, _ []string) error {
 
 // ghTokenAvailable reports whether the gh CLI can supply a token for the
 // `gh auth` fallback chain. The token itself is only length-checked and never
-// stored, logged, or printed.
+// stored, logged, or printed. WaitDelay bounds the wait for the stdout pipe to
+// close: context cancellation only kills gh itself, and a helper child holding
+// the inherited pipe would otherwise block Output() past the timeout.
 func ghTokenAvailable(ctx context.Context) bool {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	token, err := exec.CommandContext(ctx, "gh", "auth", "token").Output()
+	cmd := exec.CommandContext(ctx, "gh", "auth", "token")
+	cmd.WaitDelay = 2 * time.Second
+	token, err := cmd.Output()
 	return err == nil && len(bytes.TrimSpace(token)) > 0
 }

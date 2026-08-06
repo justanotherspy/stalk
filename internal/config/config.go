@@ -14,14 +14,17 @@ package config
 import (
 	"fmt"
 	"maps"
+	"math"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/spf13/cast"
 	"github.com/spf13/viper"
+	"go.yaml.in/yaml/v3"
 )
 
 // Defaults for the daemon section (docs/MVP-SPEC.md §4, docs/PROTOCOL.md §2.3).
@@ -106,7 +109,7 @@ func SetDefaults(v *viper.Viper) {
 
 var (
 	envVarNameRE = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-	sourceNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+	sourceNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 )
 
 // Load builds a validated Config from v, which must already have read its
@@ -114,36 +117,37 @@ var (
 //
 // Scalar daemon settings come from v, so the template's precedence holds:
 // flags > STALK_ env > config file > defaults. Structural concerns — the
-// version key, unknown-key detection, and the sources map — are read from the
-// config file layer alone: env vars cannot define nested sources anyway, and
-// STALK_VERSION is install.sh's version pin, which must not shadow the file's
-// schema version. Unknown top-level keys are not rejected, because the top
-// level belongs to Viper (the template's verbose/log keys live there, and
-// later PRs add more).
+// version key, unknown-key detection, and the sources map — are read straight
+// from the file instead: env vars cannot define nested sources anyway,
+// STALK_VERSION is install.sh's version pin (which must not shadow the file's
+// schema version), and Viper lower-cases every map key, which would silently
+// rename user-chosen source names and collapse case-differing ones. Unknown
+// top-level keys are not rejected, because the top level belongs to Viper
+// (the template's verbose/log keys live there, and later PRs add more).
 func Load(v *viper.Viper) (*Config, error) {
-	fv, err := fileLayer(v.ConfigFileUsed())
+	file, err := fileStructure(v.ConfigFileUsed())
 	if err != nil {
 		return nil, err
 	}
 
 	cfg := &Config{Version: 1}
 
-	if raw := fv.Get("version"); raw != nil {
-		n, castErr := cast.ToIntE(raw)
-		if castErr != nil || n != 1 {
+	if raw, ok := file["version"]; ok && raw != nil {
+		n, ok := strictInt(raw)
+		if !ok || n != 1 {
 			return nil, fmt.Errorf("version: unsupported config version %v (this stalk understands version 1)", raw)
 		}
 		cfg.Version = n
 	}
 
-	if err := validateDaemonKeys(fv); err != nil {
+	if err := validateDaemonKeys(file); err != nil {
 		return nil, err
 	}
 	if err := loadDaemon(v, &cfg.Daemon); err != nil {
 		return nil, err
 	}
 
-	sources, err := loadSources(fv)
+	sources, err := loadSources(file)
 	if err != nil {
 		return nil, err
 	}
@@ -152,30 +156,37 @@ func Load(v *viper.Viper) (*Config, error) {
 	return cfg, nil
 }
 
-// fileLayer returns a bare Viper holding only the config file's contents, or
-// an empty one when no file was used. It carries no env bindings, defaults, or
-// flags, so its values are exactly what the file says.
-func fileLayer(path string) (*viper.Viper, error) {
-	fv := viper.New()
+// fileStructure parses the config file directly (bypassing Viper's layers) so
+// structural validation sees exactly what the user wrote: original key case,
+// no env or default bleed-through. YAML is a superset of JSON, so a JSON
+// config file parses too. Duplicate mapping keys are a yaml.v3 parse error.
+func fileStructure(path string) (map[string]any, error) {
 	if path == "" {
-		return fv, nil
-	}
-	fv.SetConfigFile(path)
-	if err := fv.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("reading config file %s: %w", path, err)
-	}
-	return fv, nil
-}
-
-// sectionMap extracts a mapping-valued key from raw file data. A missing or
-// null key returns an empty map; any other non-mapping value is an error.
-func sectionMap(fv *viper.Viper, key string) (map[string]any, error) {
-	raw := fv.Get(key)
-	if raw == nil {
 		return map[string]any{}, nil
 	}
-	m, err := cast.ToStringMapE(raw)
+	data, err := os.ReadFile(path)
 	if err != nil {
+		return nil, fmt.Errorf("reading config file %s: %w", path, err)
+	}
+	var m map[string]any
+	if err := yaml.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("parsing config file %s: %w", path, err)
+	}
+	if m == nil {
+		m = map[string]any{}
+	}
+	return m, nil
+}
+
+// sectionMap extracts a mapping-valued key from parsed file data. A missing or
+// null key returns an empty map; any other non-mapping value is an error.
+func sectionMap(file map[string]any, key string) (map[string]any, error) {
+	raw, ok := file[key]
+	if !ok || raw == nil {
+		return map[string]any{}, nil
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
 		return nil, fmt.Errorf("%s: expected a mapping, got %v", key, raw)
 	}
 	return m, nil
@@ -195,8 +206,8 @@ func rejectUnknown(section string, m map[string]any, allowed ...string) error {
 // validateDaemonKeys checks the daemon section's structure as written in the
 // file: every key must be one stalk understands, so a typo like
 // `disconect_grace` fails loudly instead of silently using the default.
-func validateDaemonKeys(fv *viper.Viper) error {
-	daemon, err := sectionMap(fv, "daemon")
+func validateDaemonKeys(file map[string]any) error {
+	daemon, err := sectionMap(file, "daemon")
 	if err != nil {
 		return err
 	}
@@ -205,12 +216,9 @@ func validateDaemonKeys(fv *viper.Viper) error {
 		"max_connections", "retention"); err != nil {
 		return err
 	}
-	if _, ok := daemon["retention"]; !ok {
-		return nil
-	}
-	retention, err := cast.ToStringMapE(daemon["retention"])
+	retention, err := sectionMap(daemon, "retention")
 	if err != nil {
-		return fmt.Errorf("daemon.retention: expected a mapping, got %v", daemon["retention"])
+		return fmt.Errorf("daemon.%w", err)
 	}
 	return rejectUnknown("daemon.retention", retention, "events_max_age", "events_max_rows")
 }
@@ -243,8 +251,8 @@ func loadDaemon(v *viper.Viper, d *Daemon) error {
 // durationSetting resolves key through v and parses it as a positive duration.
 func durationSetting(v *viper.Viper, key string) (time.Duration, error) {
 	raw := v.Get(key)
-	s, err := cast.ToStringE(raw)
-	if err != nil {
+	s, ok := raw.(string)
+	if !ok {
 		return 0, fmt.Errorf("%s: bad duration %v: value must be a string like \"30m\" or \"14d\"", key, raw)
 	}
 	d, err := ParseDuration(s)
@@ -260,8 +268,8 @@ func durationSetting(v *viper.Viper, key string) (time.Duration, error) {
 // intSetting resolves key through v and parses it as a positive integer.
 func intSetting(v *viper.Viper, key string) (int, error) {
 	raw := v.Get(key)
-	n, err := cast.ToIntE(raw)
-	if err != nil {
+	n, ok := strictInt(raw)
+	if !ok {
 		return 0, fmt.Errorf("%s: not a whole number: %v", key, raw)
 	}
 	if n <= 0 {
@@ -270,9 +278,50 @@ func intSetting(v *viper.Viper, key string) (int, error) {
 	return n, nil
 }
 
-// loadSources parses and validates the sources map from the file layer.
-func loadSources(fv *viper.Viper) (map[string]Source, error) {
-	m, err := sectionMap(fv, "sources")
+// strictInt converts the types YAML, Viper defaults, and env strings actually
+// produce into an int — and nothing looser. Bools and non-integral floats are
+// refused rather than coerced (`true` must not become 1, `31.9` not 31).
+func strictInt(raw any) (int, bool) {
+	switch n := raw.(type) {
+	case int:
+		return n, true
+	case int32:
+		return int(n), true
+	case int64:
+		if n > math.MaxInt || n < math.MinInt {
+			return 0, false
+		}
+		return int(n), true
+	case uint:
+		if uint64(n) > math.MaxInt {
+			return 0, false
+		}
+		return int(n), true
+	case uint64:
+		if n > math.MaxInt {
+			return 0, false
+		}
+		return int(n), true
+	case float64:
+		if n != math.Trunc(n) || n > math.MaxInt || n < math.MinInt {
+			return 0, false
+		}
+		return int(n), true
+	case string:
+		i, err := strconv.Atoi(strings.TrimSpace(n))
+		if err != nil {
+			return 0, false
+		}
+		return i, true
+	default:
+		return 0, false
+	}
+}
+
+// loadSources parses and validates the sources map as written in the file.
+// Names keep their exact case; yaml.v3 already rejects duplicate keys.
+func loadSources(file map[string]any) (map[string]Source, error) {
+	m, err := sectionMap(file, "sources")
 	if err != nil {
 		return nil, err
 	}
@@ -293,8 +342,8 @@ func parseSource(name string, raw any) (Source, error) {
 	}
 	sec := fmt.Sprintf("source %q", name)
 
-	m, err := cast.ToStringMapE(raw)
-	if err != nil || raw == nil {
+	m, ok := raw.(map[string]any)
+	if !ok {
 		return Source{}, fmt.Errorf("%s: expected a mapping of settings", sec)
 	}
 
@@ -302,12 +351,13 @@ func parseSource(name string, raw any) (Source, error) {
 	if !ok {
 		return Source{}, fmt.Errorf("%s: missing type (valid types: %s, %s)", sec, SourceGitHub, SourceHTTPPoll)
 	}
-	typ, err := cast.ToStringE(rawType)
-	if err != nil {
+	typ, ok := rawType.(string)
+	if !ok {
 		return Source{}, fmt.Errorf("%s: type: expected a string, got %v", sec, rawType)
 	}
 
 	src := Source{Name: name, Type: SourceType(typ)}
+	var err error
 	switch src.Type {
 	case SourceGitHub:
 		err = parseGitHubSource(sec, m, &src)
@@ -377,8 +427,8 @@ func intervalField(sec string, m map[string]any) (time.Duration, error) {
 	if !ok || raw == nil {
 		return DefaultHTTPPollInterval, nil
 	}
-	s, err := cast.ToStringE(raw)
-	if err != nil {
+	s, ok := raw.(string)
+	if !ok {
 		return 0, fmt.Errorf("%s: interval: bad duration %v: value must be a string like \"30s\"", sec, raw)
 	}
 	d, err := ParseDuration(s)
@@ -391,15 +441,31 @@ func intervalField(sec string, m map[string]any) (time.Duration, error) {
 	return d, nil
 }
 
+// credentialPrefixes mark values that are recognizably secrets, not env var
+// names — the predictable misconfiguration of pasting a token into token_var.
+var credentialPrefixes = []string{"ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_"}
+
 // tokenVarField validates that token_var, when present, is a plausible
-// environment variable name. Only the name is kept — never a value.
+// environment variable name. Only the name is kept, and error messages never
+// echo the value: a mistyped token_var may BE a pasted secret, and secrets
+// must not land in terminal scrollback or CI logs.
 func tokenVarField(sec string, m map[string]any) (string, error) {
-	s, err := stringField(sec, m, "token_var")
-	if err != nil {
-		return "", err
+	raw, ok := m["token_var"]
+	if !ok || raw == nil {
+		return "", nil
 	}
-	if s != "" && !envVarNameRE.MatchString(s) {
-		return "", fmt.Errorf("%s: token_var %q is not a valid environment variable name", sec, s)
+	s, ok := raw.(string)
+	if !ok {
+		return "", fmt.Errorf("%s: token_var: expected a string (the name of an environment variable)", sec)
+	}
+	lower := strings.ToLower(s)
+	for _, p := range credentialPrefixes {
+		if strings.HasPrefix(lower, p) {
+			return "", fmt.Errorf("%s: token_var looks like a credential value, not an environment variable name — put the secret in an environment variable and give its NAME here", sec)
+		}
+	}
+	if !envVarNameRE.MatchString(s) {
+		return "", fmt.Errorf("%s: token_var is not a valid environment variable name (letters, digits and _ only, not starting with a digit; never put a secret value here)", sec)
 	}
 	return s, nil
 }
@@ -409,14 +475,20 @@ func parseAllowedOwners(sec string, m map[string]any, src *Source) error {
 	if !ok || raw == nil {
 		return nil
 	}
-	owners, err := cast.ToStringSliceE(raw)
-	if err != nil || len(owners) == 0 {
-		return fmt.Errorf("%s: allowed_owners: expected a non-empty list of owner names, got %v", sec, raw)
+	list, ok := raw.([]any)
+	if !ok {
+		return fmt.Errorf("%s: allowed_owners: expected a list of owner names, got %v", sec, raw)
 	}
-	for _, o := range owners {
-		if o == "" || strings.ContainsAny(o, "/ \t") {
-			return fmt.Errorf("%s: allowed_owners: %q is not a valid owner name", sec, o)
+	if len(list) == 0 {
+		return fmt.Errorf("%s: allowed_owners: expected a non-empty list of owner names", sec)
+	}
+	owners := make([]string, 0, len(list))
+	for _, item := range list {
+		o, ok := item.(string)
+		if !ok || o == "" || strings.ContainsAny(o, "/ \t") {
+			return fmt.Errorf("%s: allowed_owners: %v is not a valid owner name", sec, item)
 		}
+		owners = append(owners, o)
 	}
 	src.AllowedOwners = owners
 	return nil
@@ -428,8 +500,8 @@ func stringField(sec string, m map[string]any, key string) (string, error) {
 	if !ok || raw == nil {
 		return "", nil
 	}
-	s, err := cast.ToStringE(raw)
-	if err != nil {
+	s, ok := raw.(string)
+	if !ok {
 		return "", fmt.Errorf("%s: %s: expected a string, got %v", sec, key, raw)
 	}
 	return s, nil

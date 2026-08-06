@@ -18,22 +18,23 @@ const (
 // ResolveAuthMode reports how the daemon would authenticate src if it polled
 // right now. lookupEnv is os.LookupEnv (injected for tests) and is used only
 // to test presence — values never leave this function. ghToken reports whether
-// the gh CLI can supply a token; it is consulted only for github sources with
-// no token_var configured.
+// the gh CLI can supply a token; it is consulted only for github sources that
+// did not resolve a token from the environment.
 //
-// A configured token_var whose variable is unset or empty is an error, not a
-// silent fallback: the user asked for that credential, and the likely cause is
-// the daemon-environment caveat (the variable must be exported in the login
-// shell, not per-session).
-func ResolveAuthMode(src *Source, lookupEnv func(string) (string, bool), ghToken func() bool) (AuthMode, error) {
+// A configured token_var whose variable is unset or empty falls back down the
+// auth chain, exactly as MVP-SPEC §4 specifies (unset/empty → gh auth chain →
+// unauthenticated). The returned note flags the fallback so `stalk config
+// check` can surface it — the likely cause is the daemon-environment caveat
+// (the variable must be exported in the login shell, not per-session).
+func ResolveAuthMode(src *Source, lookupEnv func(string) (string, bool), ghToken func() bool) (mode AuthMode, note string) {
 	if src.TokenVar != "" {
-		if val, ok := lookupEnv(src.TokenVar); !ok || val == "" {
-			return "", fmt.Errorf("source %q: token_var %s is not set in the environment (export it in your login shell so the daemon inherits it)", src.Name, src.TokenVar)
+		if val, ok := lookupEnv(src.TokenVar); ok && val != "" {
+			return AuthTokenEnv, ""
 		}
-		return AuthTokenEnv, nil
+		note = fmt.Sprintf("token_var %s is unset; export it in your login shell so the daemon inherits it", src.TokenVar)
 	}
 	if src.Type == SourceGitHub && ghToken() {
-		return AuthGHCli, nil
+		return AuthGHCli, note
 	}
-	return AuthUnauthenticated, nil
+	return AuthUnauthenticated, note
 }
