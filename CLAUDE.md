@@ -18,9 +18,9 @@ reach the host's per-user socket, peer credentials, or process table, so PR 01
 removed the Dockerfile and its workflow rather than ship something that only
 looks like it works.
 
-**Status: v1 in progress.** `daemon`, `stream`, `mcp`, `status`, and
-`config check` are registered stubs that exit non-zero. `version` is the only
-command that does anything.
+**Status: v1 in progress.** `version` and `config check` (PR 02) work.
+`daemon`, `stream`, `mcp`, and `status` are registered stubs that exit
+non-zero.
 
 ## Specs
 
@@ -43,6 +43,8 @@ internal/cli/         command tree (root + subcommands), config loading
   stub.go             the shared "not implemented" RunE; deleted when the last stub goes
   daemon.go stream.go mcp.go status.go config.go version.go
   testdata/script/    testscript (txtar) CLI tests
+internal/config/      config schema: typed daemon/sources parsing + validation,
+                      day-aware durations, XDG path resolution, auth-mode resolution
 docs/                 PROTOCOL.md, DB-SCHEMA.md, MVP-SPEC.md (source of truth)
 .github/workflows/    CI, fuzz (nightly), CodeQL, Semgrep, secret-scan, zizmor,
                       scorecard, vuln, labeler, release-drafter, release

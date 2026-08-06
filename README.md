@@ -17,10 +17,10 @@ One poll loop per watched thing no matter how many sessions care. Credentials,
 backoff, rate limits, and cleanup live in the daemon, not in any session's
 lifecycle.
 
-> **v1 is under construction.** The command tree is in place but the
-> subcommands below are stubs that exit non-zero — only `stalk version` does
-> anything today. The specs in [`docs/`](#docs) are the source of truth for what
-> is being built.
+> **v1 is under construction.** The command tree is in place; `stalk version`
+> and `stalk config check` work today, and the remaining subcommands are stubs
+> that exit non-zero. The specs in [`docs/`](#docs) are the source of truth for
+> what is being built.
 
 ## Docs
 
@@ -69,18 +69,18 @@ stalk version         # prints version / build info
 stalk --help
 ```
 
-The v1 command tree, all of it stubbed out for now:
+The v1 command tree:
 
-| Command | What it will do |
-| ------- | --------------- |
+| Command | What it does |
+| ------- | ------------ |
 | `stalk daemon` | Run the per-user daemon: socket, SQLite state, poll loops |
 | `stalk stream` | Print this session's events to stdout, one line each (run as a plugin monitor) |
 | `stalk mcp` | Serve the subscribe/unsubscribe MCP tools to the agent over stdio |
 | `stalk status` | Report daemon uptime, sessions, subscriptions, and poll health |
-| `stalk config check` | Validate the resolved configuration |
+| `stalk config check` | Validate the resolved configuration and report each source's auth mode |
 
-Each of these exits non-zero with a "not implemented" message until the PR that
-builds it lands. See [`docs/MVP-SPEC.md`](docs/MVP-SPEC.md) §7 for the
+Commands not yet built exit non-zero with a "not implemented" message until
+the PR that lands them. See [`docs/MVP-SPEC.md`](docs/MVP-SPEC.md) §7 for the
 milestones.
 
 Configuration is read (in order of precedence) from flags, environment

@@ -21,13 +21,15 @@ log:
   format: text
 
 # ---------------------------------------------------------------------------
-# Everything below is the stalk daemon's own configuration. It is commented out
-# because nothing reads it yet -- `stalk config check` and the daemon land in
-# later PRs. See docs/MVP-SPEC.md section 4 for the authoritative schema.
+# Everything below is the stalk daemon's own configuration. The sources are
+# examples, so they ship commented out; run `stalk config check` to validate
+# whatever you uncomment. The daemon itself lands in a later PR. See
+# docs/MVP-SPEC.md section 4 for the authoritative schema.
 #
-# Uncomment `version` and at least one source once the daemon exists.
+# Durations accept the usual Go units (30s, 5m, 2h) plus whole days: 14d.
 
-# Schema version of this file. Bumped only on a breaking config change.
+# Schema version of this file. Optional; must be 1 when set. Bumped only on a
+# breaking config change.
 # version: 1
 
 # daemon:
@@ -42,6 +44,9 @@ log:
 #
 #   # Refuse further subscribe calls from a session past this many.
 #   max_subscriptions_per_session: 32
+#
+#   # Drop new connections past this many concurrent clients.
+#   max_connections: 64
 #
 #   retention:
 #     events_max_age: 14d
@@ -59,6 +64,8 @@ log:
 # inherited it from your login shell. Export these in your shell profile, not
 # per-session, or the daemon may not see them.
 #
+# Source names: a letter or digit first, then letters, digits, - or _.
+#
 # sources:
 #   github-personal:
 #     type: github
@@ -71,11 +78,13 @@ log:
 #     token_var: GITHUB_WORK_TOKEN
 #     # Subscribe targets outside these owners are rejected.
 #     allowed_owners: [some-org]
+#     # GitHub Enterprise: the REST API root of your instance.
+#     # api_url: https://github.example.com/api/v3
 #
 #   deploy-status:
 #     type: http_poll
 #     url: https://deploys.internal.example/api/recent.json
-#     interval: 30s          # minimum 10s
+#     interval: 30s          # optional (default 30s), minimum 10s
 #     items_path: "deploys"  # key holding the array; omit to use the root
 #     id_field: "id"         # dedupe field; omit to hash the whole item
 #     token_var: DEPLOY_TOKEN
