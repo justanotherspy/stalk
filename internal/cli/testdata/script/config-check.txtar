@@ -1,0 +1,108 @@
+# `stalk config check` validates the resolved configuration end to end:
+# it reports the file it loaded, the resolved daemon settings and paths, and
+# every source with its auth MODE — never a credential value.
+
+env XDG_RUNTIME_DIR=$WORK/run
+env XDG_STATE_HOME=$WORK/state
+env GITHUB_WORK_TOKEN=hunter2-never-printed
+env DEPLOY_TOKEN=deploy-secret-never-printed
+
+# A valid config: both source types, defaults and overrides mixed.
+exec stalk config check --config good.yaml
+stdout 'config file: .*good\.yaml'
+stdout 'idle_exit_after: 45m'
+stdout 'disconnect_grace: 10m'
+stdout 'max_subscriptions_per_session: 32'
+stdout 'max_connections: 64'
+stdout 'retention\.events_max_age: 14d'
+stdout 'retention\.events_max_rows: 50000'
+stdout 'socket: .+/run/stalk/daemon\.sock'
+stdout 'database: .+/state/stalk/stalk\.db'
+stdout 'github-work: github auth=token_env allowed_owners=acme'
+stdout 'deploys: http_poll auth=token_env interval=30s url=https://deploys\.example/api/recent\.json'
+stdout 'ok: 2 sources'
+
+# Token VALUES must never appear anywhere, on success or failure.
+! stdout hunter2
+! stderr hunter2
+! stdout deploy-secret
+! stderr deploy-secret
+
+# No config file anywhere: built-in defaults still validate.
+exec stalk config check
+stdout 'config file: none found'
+stdout 'idle_exit_after: 30m'
+stdout 'sources: none configured'
+stdout 'ok'
+
+# STALK_ environment variables override the file (precedence: flags > env >
+# file > defaults).
+env STALK_DAEMON_DISCONNECT_GRACE=20m
+exec stalk config check --config good.yaml
+stdout 'disconnect_grace: 20m'
+env STALK_DAEMON_DISCONNECT_GRACE=
+
+# A source with an unknown type fails with a precise error.
+! exec stalk config check --config bad-type.yaml
+stderr 'source "queue": unknown type "sqs"'
+
+# An http_poll interval below the 10s floor is rejected.
+! exec stalk config check --config bad-interval.yaml
+stderr 'source "deploys": interval 5s is below the 10s minimum'
+
+# An http_poll source without a url is rejected.
+! exec stalk config check --config missing-url.yaml
+stderr 'source "deploys": missing url'
+
+# A malformed daemon duration is rejected, naming the key.
+! exec stalk config check --config bad-duration.yaml
+stderr 'daemon.idle_exit_after: bad duration "45x"'
+
+# A token_var naming an unset environment variable is a problem: the daemon
+# would poll unauthenticated or fail later, so check fails now. The message
+# names the VARIABLE, never a value.
+! exec stalk config check --config unset-token.yaml
+stderr 'token_var STALK_TEST_NO_SUCH_TOKEN is not set in the environment'
+
+-- good.yaml --
+version: 1
+
+daemon:
+  idle_exit_after: 45m
+
+sources:
+  github-work:
+    type: github
+    token_var: GITHUB_WORK_TOKEN
+    allowed_owners: [acme]
+
+  deploys:
+    type: http_poll
+    url: https://deploys.example/api/recent.json
+    interval: 30s
+    items_path: deploys
+    id_field: id
+    token_var: DEPLOY_TOKEN
+-- bad-type.yaml --
+sources:
+  queue:
+    type: sqs
+-- bad-interval.yaml --
+sources:
+  deploys:
+    type: http_poll
+    url: https://deploys.example/api/recent.json
+    interval: 5s
+-- missing-url.yaml --
+sources:
+  deploys:
+    type: http_poll
+-- bad-duration.yaml --
+daemon:
+  idle_exit_after: 45x
+-- unset-token.yaml --
+sources:
+  deploys:
+    type: http_poll
+    url: https://deploys.example/api/recent.json
+    token_var: STALK_TEST_NO_SUCH_TOKEN

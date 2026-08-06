@@ -11,6 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/justanotherspy/stalk/internal/config"
 )
 
 // BuildInfo carries version metadata injected at build time.
@@ -113,6 +115,10 @@ func initConfig(cmd *cobra.Command) error {
 	viper.SetEnvPrefix("STALK")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
+
+	// Register the daemon-section defaults so they resolve (and can be
+	// overridden through STALK_ env vars) even without a config file.
+	config.SetDefaults(viper.GetViper())
 
 	// Let flags win over env/config when explicitly set.
 	_ = viper.BindPFlag("verbose", cmd.Flags().Lookup("verbose"))
