@@ -2,12 +2,19 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const day = 24 * time.Hour
+
+// maxDays is the largest whole-day count representable as a time.Duration
+// (~292 years). Larger values would wrap int64 — sometimes to a small
+// positive number that passes every downstream validation — so the parser
+// rejects them outright, matching time.ParseDuration's own overflow refusal.
+const maxDays = int(math.MaxInt64 / int64(day))
 
 // ParseDuration parses a config duration: anything time.ParseDuration accepts,
 // plus a leading whole-day component with the unit "d" (docs/MVP-SPEC.md §4
@@ -22,17 +29,24 @@ func ParseDuration(s string) (time.Duration, error) {
 
 	if i := strings.IndexByte(s, 'd'); i > 0 && allDigits(s[:i]) {
 		days, err := strconv.Atoi(s[:i])
-		if err != nil {
-			return 0, fmt.Errorf("bad duration %q (examples: 30s, 5m, 2h, 14d)", s)
+		if err != nil || days > maxDays {
+			return 0, fmt.Errorf("bad duration %q: too large", s)
 		}
-		var tail time.Duration
+		total := time.Duration(days) * day
 		if rest := s[i+1:]; rest != "" {
-			tail, err = time.ParseDuration(rest)
+			tail, err := time.ParseDuration(rest)
 			if err != nil {
 				return 0, fmt.Errorf("bad duration %q (examples: 30s, 5m, 2h, 14d)", s)
 			}
+			if tail < 0 {
+				return 0, fmt.Errorf("bad duration %q: negative component after days", s)
+			}
+			if tail > math.MaxInt64-total {
+				return 0, fmt.Errorf("bad duration %q: too large", s)
+			}
+			total += tail
 		}
-		return time.Duration(days)*day + tail, nil
+		return total, nil
 	}
 
 	d, err := time.ParseDuration(s)

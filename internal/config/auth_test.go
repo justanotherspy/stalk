@@ -13,11 +13,12 @@ func TestResolveAuthMode(t *testing.T) {
 	ghNo := func() bool { return false }
 
 	tests := []struct {
-		name string
-		src  Source
-		env  map[string]string
-		gh   func() bool
-		want AuthMode
+		name     string
+		src      Source
+		env      map[string]string
+		gh       func() bool
+		want     AuthMode
+		wantNote string // substring; empty means no note at all
 	}{
 		{
 			name: "github token_var set and present",
@@ -39,6 +40,28 @@ func TestResolveAuthMode(t *testing.T) {
 			want: AuthUnauthenticated,
 		},
 		{
+			name:     "github unset token_var falls back to gh cli with a note",
+			src:      Source{Name: "gh", Type: SourceGitHub, TokenVar: "MISSING_TOKEN"},
+			gh:       ghYes,
+			want:     AuthGHCli,
+			wantNote: "token_var MISSING_TOKEN is unset",
+		},
+		{
+			name:     "github unset token_var falls back to unauthenticated with a note",
+			src:      Source{Name: "gh", Type: SourceGitHub, TokenVar: "MISSING_TOKEN"},
+			gh:       ghNo,
+			want:     AuthUnauthenticated,
+			wantNote: "token_var MISSING_TOKEN is unset",
+		},
+		{
+			name:     "empty-string env value counts as unset",
+			src:      Source{Name: "gh", Type: SourceGitHub, TokenVar: "EMPTY_TOKEN"},
+			env:      map[string]string{"EMPTY_TOKEN": ""},
+			gh:       ghNo,
+			want:     AuthUnauthenticated,
+			wantNote: "token_var EMPTY_TOKEN is unset",
+		},
+		{
 			name: "http_poll token_var set and present",
 			src:  Source{Name: "deploys", Type: SourceHTTPPoll, TokenVar: "DEPLOY_TOKEN"},
 			env:  map[string]string{"DEPLOY_TOKEN": "value"},
@@ -51,40 +74,26 @@ func TestResolveAuthMode(t *testing.T) {
 			gh:   func() bool { t.Error("ghToken consulted for http_poll"); return true },
 			want: AuthUnauthenticated,
 		},
+		{
+			name:     "http_poll unset token_var falls back to unauthenticated, gh not consulted",
+			src:      Source{Name: "deploys", Type: SourceHTTPPoll, TokenVar: "MISSING_TOKEN"},
+			gh:       func() bool { t.Error("ghToken consulted for http_poll"); return true },
+			want:     AuthUnauthenticated,
+			wantNote: "token_var MISSING_TOKEN is unset",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ResolveAuthMode(&tt.src, env(tt.env), tt.gh)
-			if err != nil {
-				t.Fatalf("ResolveAuthMode: %v", err)
-			}
+			got, note := ResolveAuthMode(&tt.src, env(tt.env), tt.gh)
 			if got != tt.want {
 				t.Errorf("ResolveAuthMode = %q, want %q", got, tt.want)
 			}
-		})
-	}
-}
-
-func TestResolveAuthModeMissingTokenVar(t *testing.T) {
-	for _, src := range []Source{
-		{Name: "gh", Type: SourceGitHub, TokenVar: "MISSING_TOKEN"},
-		{Name: "deploys", Type: SourceHTTPPoll, TokenVar: "EMPTY_TOKEN"},
-	} {
-		env := func(k string) (string, bool) {
-			if k == "EMPTY_TOKEN" {
-				return "", true // set but empty counts as missing
+			if tt.wantNote == "" && note != "" {
+				t.Errorf("ResolveAuthMode note = %q, want none", note)
 			}
-			return "", false
-		}
-		gh := func() bool { t.Error("ghToken consulted despite configured token_var"); return true }
-
-		_, err := ResolveAuthMode(&src, env, gh)
-		if err == nil {
-			t.Errorf("ResolveAuthMode(%s) succeeded, want error", src.Name)
-			continue
-		}
-		if !strings.Contains(err.Error(), src.TokenVar) || !strings.Contains(err.Error(), "is not set") {
-			t.Errorf("ResolveAuthMode(%s) err = %q, want it to name %s", src.Name, err, src.TokenVar)
-		}
+			if tt.wantNote != "" && !strings.Contains(note, tt.wantNote) {
+				t.Errorf("ResolveAuthMode note = %q, want it to contain %q", note, tt.wantNote)
+			}
+		})
 	}
 }

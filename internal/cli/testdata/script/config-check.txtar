@@ -35,6 +35,13 @@ stdout 'idle_exit_after: 30m'
 stdout 'sources: none configured'
 stdout 'ok'
 
+# The default search location works: ~/.stalk.yaml is found without --config.
+env HOME=$WORK/home
+exec stalk config check
+stdout 'config file: .*[/\\]\.stalk\.yaml'
+stdout 'idle_exit_after: 1h17m'
+env HOME=/no-home
+
 # STALK_ environment variables override the file (precedence: flags > env >
 # file > defaults).
 env STALK_DAEMON_DISCONNECT_GRACE=20m
@@ -58,11 +65,19 @@ stderr 'source "deploys": missing url'
 ! exec stalk config check --config bad-duration.yaml
 stderr 'daemon.idle_exit_after: bad duration "45x"'
 
-# A token_var naming an unset environment variable is a problem: the daemon
-# would poll unauthenticated or fail later, so check fails now. The message
-# names the VARIABLE, never a value.
-! exec stalk config check --config unset-token.yaml
-stderr 'token_var STALK_TEST_NO_SUCH_TOKEN is not set in the environment'
+# A token_var naming an unset environment variable is not fatal: the source
+# falls back down the auth chain (MVP-SPEC section 4) and the fallback is
+# flagged, naming the VARIABLE, never a value.
+exec stalk config check --config unset-token.yaml
+stdout 'deploys: http_poll auth=unauthenticated .*\(token_var STALK_TEST_NO_SUCH_TOKEN is unset'
+stdout 'ok: 1 sources'
+
+# A token_var holding a pasted credential VALUE is rejected -- and the value
+# itself must never be echoed back.
+! exec stalk config check --config pasted-token.yaml
+stderr 'token_var looks like a credential value'
+! stdout ghp_
+! stderr ghp_
 
 -- good.yaml --
 version: 1
@@ -106,3 +121,11 @@ sources:
     type: http_poll
     url: https://deploys.example/api/recent.json
     token_var: STALK_TEST_NO_SUCH_TOKEN
+-- pasted-token.yaml --
+sources:
+  gh:
+    type: github
+    token_var: ghp_notARealTokenXYZ
+-- home/.stalk.yaml --
+daemon:
+  idle_exit_after: 77m

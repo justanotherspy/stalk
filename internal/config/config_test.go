@@ -15,8 +15,21 @@ import (
 // global one — STALK_ env prefix, key replacer, AutomaticEnv, defaults — and
 // pointed at a temp file holding yaml. Keeping the wiring identical is the
 // point: these tests must see the same precedence the CLI sees.
-func newViper(t *testing.T, yaml string) *viper.Viper {
+//
+// The process's real STALK_* variables are blanked first (a machine actually
+// running stalk may have them exported; Viper treats empty as unset), then
+// env is applied, so tests control the environment they run under.
+func newViper(t *testing.T, yaml string, env map[string]string) *viper.Viper {
 	t.Helper()
+	for _, kv := range os.Environ() {
+		if k, _, _ := strings.Cut(kv, "="); strings.HasPrefix(k, "STALK_") {
+			t.Setenv(k, "")
+		}
+	}
+	for k, val := range env {
+		t.Setenv(k, val)
+	}
+
 	v := viper.New()
 	v.SetEnvPrefix("STALK")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
@@ -36,7 +49,7 @@ func newViper(t *testing.T, yaml string) *viper.Viper {
 
 func loadYAML(t *testing.T, yaml string) (*Config, error) {
 	t.Helper()
-	return Load(newViper(t, yaml))
+	return Load(newViper(t, yaml, nil))
 }
 
 func TestLoadDefaultsWithoutFile(t *testing.T) {
@@ -152,10 +165,55 @@ sources:
 	}
 }
 
-func TestLoadEnvOverridesFile(t *testing.T) {
-	t.Setenv("STALK_DAEMON_IDLE_EXIT_AFTER", "2h")
+// Source names must survive exactly as written: Viper lower-cases map keys,
+// which would silently rename "GitHub-Work" and collapse case-differing
+// names, so the sources section is parsed from the raw file instead.
+func TestLoadPreservesSourceNameCase(t *testing.T) {
+	cfg, err := loadYAML(t, `
+sources:
+  GitHub-Work:
+    type: github
+  Deploys:
+    type: http_poll
+    url: https://a.example/api.json
+  deploys:
+    type: http_poll
+    url: https://b.example/api.json
+`)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.Sources) != 3 {
+		t.Fatalf("len(Sources) = %d, want 3 (case-differing names are distinct)", len(cfg.Sources))
+	}
+	if _, ok := cfg.Sources["GitHub-Work"]; !ok {
+		t.Errorf("source %q lost its case: have %v", "GitHub-Work", cfg.Sources)
+	}
+	if cfg.Sources["Deploys"].URL != "https://a.example/api.json" {
+		t.Errorf("Deploys.URL = %q, want the uppercase entry's url", cfg.Sources["Deploys"].URL)
+	}
+	if cfg.Sources["deploys"].URL != "https://b.example/api.json" {
+		t.Errorf("deploys.URL = %q, want the lowercase entry's url", cfg.Sources["deploys"].URL)
+	}
+}
 
-	cfg, err := loadYAML(t, "daemon:\n  idle_exit_after: 45m\n")
+// A bare `retention:` key (children commented out) must fall back to
+// defaults, consistent with how every other empty section behaves.
+func TestLoadNullRetention(t *testing.T) {
+	cfg, err := loadYAML(t, "daemon:\n  retention:\n")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Daemon.Retention.EventsMaxAge != DefaultEventsMaxAge {
+		t.Errorf("EventsMaxAge = %s, want default", cfg.Daemon.Retention.EventsMaxAge)
+	}
+}
+
+func TestLoadEnvOverridesFile(t *testing.T) {
+	v := newViper(t, "daemon:\n  idle_exit_after: 45m\n",
+		map[string]string{"STALK_DAEMON_IDLE_EXIT_AFTER": "2h"})
+
+	cfg, err := Load(v)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -165,9 +223,9 @@ func TestLoadEnvOverridesFile(t *testing.T) {
 }
 
 func TestLoadBadEnvValue(t *testing.T) {
-	t.Setenv("STALK_DAEMON_DISCONNECT_GRACE", "soon")
+	v := newViper(t, "", map[string]string{"STALK_DAEMON_DISCONNECT_GRACE": "soon"})
 
-	_, err := loadYAML(t, "")
+	_, err := Load(v)
 	if err == nil || !strings.Contains(err.Error(), "daemon.disconnect_grace") {
 		t.Errorf("Load() err = %v, want daemon.disconnect_grace duration error", err)
 	}
@@ -177,10 +235,9 @@ func TestLoadBadEnvValue(t *testing.T) {
 // break config parsing. The version key is a file-schema fact and is read
 // from the file layer only.
 func TestLoadIgnoresStalkVersionEnv(t *testing.T) {
-	t.Setenv("STALK_VERSION", "v9.9.9")
-
 	for _, yaml := range []string{"", "version: 1\n"} {
-		cfg, err := loadYAML(t, yaml)
+		v := newViper(t, yaml, map[string]string{"STALK_VERSION": "v9.9.9"})
+		cfg, err := Load(v)
 		if err != nil {
 			t.Errorf("Load(%q) with STALK_VERSION set: %v", yaml, err)
 			continue
@@ -188,6 +245,24 @@ func TestLoadIgnoresStalkVersionEnv(t *testing.T) {
 		if cfg.Version != 1 {
 			t.Errorf("Load(%q).Version = %d, want 1", yaml, cfg.Version)
 		}
+	}
+}
+
+// A pasted credential must never be echoed back in an error message, where it
+// would land in terminal scrollback or CI logs.
+func TestLoadNeverEchoesCredentialShapedTokenVar(t *testing.T) {
+	// Prefix-triggering but deliberately NOT shaped like a real 36-char PAT,
+	// so secret scanners never flag the fixture itself.
+	const pasted = "ghp_notARealTokenXYZ"
+	_, err := loadYAML(t, "sources:\n  gh:\n    type: github\n    token_var: "+pasted+"\n")
+	if err == nil {
+		t.Fatal("Load() accepted a credential-shaped token_var")
+	}
+	if !strings.Contains(err.Error(), "looks like a credential value") {
+		t.Errorf("Load() err = %q, want credential-value rejection", err)
+	}
+	if strings.Contains(err.Error(), pasted) {
+		t.Errorf("Load() err echoes the pasted credential: %q", err)
 	}
 }
 
@@ -206,6 +281,16 @@ func TestLoadInvalid(t *testing.T) {
 			name:    "non-numeric version",
 			yaml:    "version: two\n",
 			wantErr: "unsupported config version two",
+		},
+		{
+			name:    "boolean version",
+			yaml:    "version: true\n",
+			wantErr: "unsupported config version true",
+		},
+		{
+			name:    "fractional version",
+			yaml:    "version: 1.9\n",
+			wantErr: "unsupported config version 1.9",
 		},
 		{
 			name:    "daemon not a mapping",
@@ -235,12 +320,17 @@ func TestLoadInvalid(t *testing.T) {
 		{
 			name:    "unitless daemon duration",
 			yaml:    "daemon:\n  idle_exit_after: 1800\n",
-			wantErr: "daemon.idle_exit_after: bad duration \"1800\": missing unit",
+			wantErr: "daemon.idle_exit_after: bad duration 1800",
 		},
 		{
 			name:    "negative daemon duration",
 			yaml:    "daemon:\n  disconnect_grace: -10m\n",
 			wantErr: "daemon.disconnect_grace: must be positive",
+		},
+		{
+			name:    "overflowing retention duration",
+			yaml:    "daemon:\n  retention:\n    events_max_age: 213504d\n",
+			wantErr: `daemon.retention.events_max_age: bad duration "213504d": too large`,
 		},
 		{
 			name:    "bad retention duration",
@@ -251,6 +341,16 @@ func TestLoadInvalid(t *testing.T) {
 			name:    "non-integer rows cap",
 			yaml:    "daemon:\n  retention:\n    events_max_rows: many\n",
 			wantErr: "daemon.retention.events_max_rows: not a whole number",
+		},
+		{
+			name:    "boolean connection cap",
+			yaml:    "daemon:\n  max_connections: true\n",
+			wantErr: "daemon.max_connections: not a whole number: true",
+		},
+		{
+			name:    "fractional subscriptions cap",
+			yaml:    "daemon:\n  max_subscriptions_per_session: 31.9\n",
+			wantErr: "daemon.max_subscriptions_per_session: not a whole number: 31.9",
 		},
 		{
 			name:    "zero rows cap",
@@ -295,7 +395,12 @@ func TestLoadInvalid(t *testing.T) {
 		{
 			name:    "bad token_var name",
 			yaml:    "sources:\n  gh:\n    type: github\n    token_var: \"my token\"\n",
-			wantErr: `source "gh": token_var "my token" is not a valid environment variable name`,
+			wantErr: `source "gh": token_var is not a valid environment variable name`,
+		},
+		{
+			name:    "non-string token_var",
+			yaml:    "sources:\n  gh:\n    type: github\n    token_var: 123\n",
+			wantErr: `source "gh": token_var: expected a string`,
 		},
 		{
 			name:    "bad api_url",
@@ -305,12 +410,23 @@ func TestLoadInvalid(t *testing.T) {
 		{
 			name:    "allowed_owners not a list",
 			yaml:    "sources:\n  gh:\n    type: github\n    allowed_owners: acme/repo\n",
-			wantErr: `source "gh": allowed_owners: "acme/repo" is not a valid owner name`,
+			wantErr: `source "gh": allowed_owners: expected a list of owner names`,
+		},
+		{
+			// A scalar must not be whitespace-split into surprise owners.
+			name:    "allowed_owners scalar with spaces",
+			yaml:    "sources:\n  gh:\n    type: github\n    allowed_owners: acme corp\n",
+			wantErr: `source "gh": allowed_owners: expected a list of owner names`,
 		},
 		{
 			name:    "allowed_owners bad element",
 			yaml:    "sources:\n  gh:\n    type: github\n    allowed_owners: [\"a/b\"]\n",
-			wantErr: `source "gh": allowed_owners: "a/b" is not a valid owner name`,
+			wantErr: `source "gh": allowed_owners: a/b is not a valid owner name`,
+		},
+		{
+			name:    "allowed_owners non-string element",
+			yaml:    "sources:\n  gh:\n    type: github\n    allowed_owners: [1]\n",
+			wantErr: `source "gh": allowed_owners: 1 is not a valid owner name`,
 		},
 		{
 			name:    "allowed_owners empty list",
