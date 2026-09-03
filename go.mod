@@ -6,7 +6,7 @@ go 1.26.0
 // vulnerabilities reachable from the CLI. The pinned toolchain below fixes the
 // issues flagged by govulncheck; the module floor stays at 1.26.0. Bump this
 // when a newer patch release fixes a reported issue (re-run `make vuln`).
-toolchain go1.26.5
+toolchain go1.27.1
 
 require (
 	github.com/rogpeppe/go-internal v1.16.0
