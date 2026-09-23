@@ -23,8 +23,8 @@ DATE    := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
 # ---- Pinned tool versions ---------------------------------------------------
-GOLANGCI_LINT_VERSION := v2.12.2
-GORELEASER_VERSION    := v2.16.0
+GOLANGCI_LINT_VERSION := v2.13.2
+GORELEASER_VERSION    := v2.18.2
 GOTESTSUM_VERSION     := v1.13.0
 GOVULNCHECK_VERSION   := latest
 GOPLS_VERSION         := latest
