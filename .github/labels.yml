@@ -1,6 +1,6 @@
 # Canonical repository labels, synced by .github/workflows/labeler.yml.
 # These are applied by Renovate (the shared justanotherspy/renovate preset adds
-# `dependencies`, `major` and `security`) and referenced by
+# `dependencies`, `major-update` and `security`) and referenced by
 # .github/release-drafter.yml; keep this file in sync when you add a new label
 # reference there.
 
@@ -8,7 +8,7 @@
 - name: dependencies
   color: 0366d6
   description: Dependency updates
-- name: major
+- name: major-update
   color: e99695
   description: Major dependency update (Renovate; never automerged)
 
