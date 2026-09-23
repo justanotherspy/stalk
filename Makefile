@@ -2,8 +2,9 @@
 # stalk — developer Makefile
 #
 # Run `make help` to see all targets.
-# Tool versions are pinned below and mirrored in the GitHub Actions workflows
-# and .goreleaser.yaml. Bump them together.
+# Tool versions are pinned below and mirrored in the GitHub Actions workflows.
+# Renovate bumps them together: each pinned `*_VERSION` line carries a
+# `# renovate:` comment read by the shared preset's customManagers:makefileVersions.
 # ==============================================================================
 
 SHELL := /usr/bin/env bash
@@ -23,11 +24,15 @@ DATE    := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
 # ---- Pinned tool versions ---------------------------------------------------
+# renovate: datasource=github-releases depName=golangci/golangci-lint
 GOLANGCI_LINT_VERSION := v2.13.2
+# renovate: datasource=github-releases depName=goreleaser/goreleaser
 GORELEASER_VERSION    := v2.18.2
+# renovate: datasource=github-releases depName=gotestyourself/gotestsum
 GOTESTSUM_VERSION     := v1.13.0
 GOVULNCHECK_VERSION   := latest
 GOPLS_VERSION         := latest
+# renovate: datasource=github-releases depName=rhysd/actionlint
 ACTIONLINT_VERSION    := v1.7.12
 BENCHSTAT_VERSION     := latest
 
