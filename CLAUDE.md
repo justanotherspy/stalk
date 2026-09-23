@@ -53,6 +53,7 @@ docs/                 PROTOCOL.md, DB-SCHEMA.md, MVP-SPEC.md (source of truth)
 .stalk.yaml.example   every config key, documented
 .golangci.yml         golangci-lint v2 config (linters + formatters)
 .goreleaser.yaml      GoReleaser v2 build/release config (linux + darwin only)
+renovate.json         Renovate config (extends local>justanotherspy/renovate)
 .mcp.json             MCP servers for dev sessions (github, linear, context7, …)
 install.sh            checksum-verified prebuilt-binary installer (curl | bash)
 SECURITY.md           security policy / private vulnerability reporting
@@ -106,7 +107,10 @@ Run `make help` for the full list. The essentials:
   `stringscut`, `newexpr`). `make modernize` applies the fixes; CI runs
   `make modernize-check` (`go fix -diff`, which exits non-zero on any diff), so
   the tree must stay modernized. Run `go tool fix help` to list the fixers.
-- All GitHub Actions are pinned to commit SHAs; Dependabot keeps them current.
+- All GitHub Actions are pinned to commit SHAs; Renovate keeps them current.
+  `renovate.json` extends the shared `local>justanotherspy/renovate` preset and
+  holds only this repo's own rules. A hand-pinned `*_VERSION` in the Makefile
+  needs a `# renovate: datasource=… depName=…` comment on the line above it.
 - Add new subcommands under `internal/cli/`, one file per command, and register
   them in `newRootCmd`. A constructor you forget to register fails lint, not
   just the tests (`unused`).

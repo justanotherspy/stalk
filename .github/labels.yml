@@ -1,20 +1,16 @@
 # Canonical repository labels, synced by .github/workflows/labeler.yml.
-# These are referenced by .github/dependabot.yml and .github/release-drafter.yml;
-# keep this file in sync when you add a new label reference there.
+# These are applied by Renovate (the shared justanotherspy/renovate preset adds
+# `dependencies`, `major` and `security`) and referenced by
+# .github/release-drafter.yml; keep this file in sync when you add a new label
+# reference there.
 
-# --- Dependabot ---
+# --- Renovate ---
 - name: dependencies
   color: 0366d6
   description: Dependency updates
-- name: go
-  color: 00add8
-  description: Go modules / language
-- name: github-actions
-  color: 2088ff
-  description: GitHub Actions / CI workflows
-- name: python
-  color: 3572a5
-  description: Hash-pinned Python CI tools (.github/requirements)
+- name: major
+  color: e99695
+  description: Major dependency update (Renovate; never automerged)
 
 # --- release-drafter categories & autolabeler ---
 - name: feature

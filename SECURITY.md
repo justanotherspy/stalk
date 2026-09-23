@@ -26,7 +26,7 @@ remediation progress. Once a fix ships we're happy to credit you.
 
 ## Hardening already in place
 
-- Dependencies and GitHub Actions are kept current by Dependabot; all actions
+- Dependencies and GitHub Actions are kept current by Renovate; all actions
   are pinned to commit SHAs.
 - CI runs CodeQL, Semgrep, secret scanning, and `govulncheck`.
 - Release artifacts ship a `checksums.txt` signed with [cosign][cosign] and an

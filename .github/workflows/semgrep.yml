@@ -26,8 +26,8 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install Semgrep CE
-        # Hash-pinned for supply-chain integrity; Dependabot (pip ecosystem)
-        # keeps .github/requirements/semgrep.txt current.
+        # Hash-pinned for supply-chain integrity; Renovate (pip-compile
+        # manager) keeps .github/requirements/semgrep.txt current.
         run: python -m pip install --require-hashes -r .github/requirements/semgrep.txt
       - name: Run Semgrep (SARIF)
         # Findings should not fail the build; they surface in code scanning.
