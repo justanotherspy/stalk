@@ -1,5 +1,6 @@
 # Input for the hash-pinned zizmor.txt used by .github/workflows/zizmor.yml.
-# Regenerate with:
-#   uv pip compile --python-version 3.13 --python-platform linux \
-#     --generate-hashes -o .github/requirements/zizmor.txt .github/requirements/zizmor.in
+# Renovate (pip-compile manager) re-runs the command recorded in zizmor.txt's
+# header, and only understands the --flag=value spelling. Regenerate with:
+#   uv pip compile --universal --generate-hashes --python-version=3.13 \
+#     .github/requirements/zizmor.in --output-file=.github/requirements/zizmor.txt
 zizmor

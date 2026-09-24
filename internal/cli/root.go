@@ -126,8 +126,7 @@ func initConfig(cmd *cobra.Command) error {
 	_ = viper.BindPFlag("log.format", cmd.Flags().Lookup("log-format"))
 
 	if err := viper.ReadInConfig(); err != nil {
-		var notFound viper.ConfigFileNotFoundError
-		if !errors.As(err, &notFound) {
+		if _, ok := errors.AsType[viper.ConfigFileNotFoundError](err); !ok {
 			return err
 		}
 	}

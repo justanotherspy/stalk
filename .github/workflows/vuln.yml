@@ -9,7 +9,8 @@ name: Vuln scan
 
 on:
   schedule:
-    # Weekly, Monday 06:00 UTC (before the workday, after Dependabot's run).
+    # Weekly, Monday 06:00 UTC (before the workday, after Renovate's
+    # Monday-morning lock file maintenance).
     - cron: "0 6 * * 1"
   workflow_dispatch:
 

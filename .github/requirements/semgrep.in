@@ -1,5 +1,6 @@
 # Input for the hash-pinned semgrep.txt used by .github/workflows/semgrep.yml.
-# Regenerate with:
-#   uv pip compile --python-version 3.13 --python-platform linux \
-#     --generate-hashes -o .github/requirements/semgrep.txt .github/requirements/semgrep.in
+# Renovate (pip-compile manager) re-runs the command recorded in semgrep.txt's
+# header, and only understands the --flag=value spelling. Regenerate with:
+#   uv pip compile --universal --generate-hashes --python-version=3.13 \
+#     .github/requirements/semgrep.in --output-file=.github/requirements/semgrep.txt
 semgrep

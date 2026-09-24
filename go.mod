@@ -6,7 +6,7 @@ go 1.26.0
 // vulnerabilities reachable from the CLI. The pinned toolchain below fixes the
 // issues flagged by govulncheck; the module floor stays at 1.26.0. Bump this
 // when a newer patch release fixes a reported issue (re-run `make vuln`).
-toolchain go1.26.6
+toolchain go1.27.1
 
 require (
 	github.com/rogpeppe/go-internal v1.16.0
@@ -28,7 +28,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/tools v0.35.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/tools v0.49.0 // indirect
 )
