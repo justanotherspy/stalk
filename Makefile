@@ -25,7 +25,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 # ---- Pinned tool versions ---------------------------------------------------
 # renovate: datasource=github-releases depName=golangci/golangci-lint
-GOLANGCI_LINT_VERSION := v2.13.2
+GOLANGCI_LINT_VERSION := v2.14.0
 # renovate: datasource=github-releases depName=goreleaser/goreleaser
 GORELEASER_VERSION    := v2.18.2
 # renovate: datasource=github-releases depName=gotestyourself/gotestsum
