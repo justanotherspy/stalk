@@ -27,7 +27,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 # renovate: datasource=github-releases depName=golangci/golangci-lint
 GOLANGCI_LINT_VERSION := v2.15.0
 # renovate: datasource=github-releases depName=goreleaser/goreleaser
-GORELEASER_VERSION    := v2.18.3
+GORELEASER_VERSION    := v2.19.0
 # renovate: datasource=github-releases depName=gotestyourself/gotestsum
 GOTESTSUM_VERSION     := v1.13.0
 GOVULNCHECK_VERSION   := latest
