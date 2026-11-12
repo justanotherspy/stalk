@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // Defaults for the daemon section (docs/MVP-SPEC.md §4, docs/PROTOCOL.md §2.3).
